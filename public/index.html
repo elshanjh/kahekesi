@@ -289,6 +289,8 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .sheet .r{display:flex;gap:8px;flex-wrap:wrap}
 .sheet .acts{display:flex;gap:8px;align-items:center}
 .sheet .acts .btn:first-child{flex:1}
+.edmore{display:flex;flex-direction:column;gap:14px}.edmore[hidden]{display:none}
+#edMoreBtn{align-self:stretch}
 
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:20;background:var(--btn);color:var(--btn-fg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;max-width:calc(100% - 32px);text-align:center}
 .bit{position:fixed;z-index:30;width:8px;height:8px;border-radius:2px;pointer-events:none;animation:fly .7s ease-out forwards}
@@ -350,19 +352,21 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
   <div class="sheet" id="edSheet" hidden>
     <h2 id="edTitle">Edit item</h2>
     <input class="field" id="edText" aria-label="Item text">
-    <label class="f">Where it goes<div class="seg" id="edKind">
-      <button type="button" data-v="inbox">Inbox</button><button type="button" data-v="todo">To-do</button><button type="button" data-v="shopping">Shopping</button><button type="button" data-v="idea">Idea</button></div></label>
     <label class="f">Whose it is<div class="seg" id="edOwner">
       <button type="button" data-v="a"></button><button type="button" data-v="b"></button><button type="button" data-v="both">Together</button></div></label>
-    <div class="r">
-      <label class="f">Category<select class="field" id="edCat"></select></label>
-      <label class="f">Or a new one<input class="field" id="edCatNew" maxlength="20" placeholder="Type a name"></label>
-    </div>
     <label class="f">Planned day<input class="field" type="date" id="edDate"></label>
     <div class="r">
       <button type="button" class="btn ghost small" id="edToday">Today</button>
       <button type="button" class="btn ghost small" id="edTom">Tomorrow</button>
       <button type="button" class="btn ghost small" id="edNoDay">No day</button>
+    </div>
+    <button type="button" class="btn ghost" id="edMoreBtn" aria-expanded="false" aria-controls="edMore">More details</button>
+    <div id="edMore" class="edmore" hidden>
+    <label class="f">Where it goes<div class="seg" id="edKind">
+      <button type="button" data-v="inbox">Inbox</button><button type="button" data-v="todo">To-do</button><button type="button" data-v="shopping">Shopping</button><button type="button" data-v="idea">Idea</button></div></label>
+    <div class="r">
+      <label class="f">Category<select class="field" id="edCat"></select></label>
+      <label class="f">Or a new one<input class="field" id="edCatNew" maxlength="20" placeholder="Type a name"></label>
     </div>
     <div class="r">
       <label class="f">From<input class="field" type="time" id="edStart"></label>
@@ -391,6 +395,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
       <button type="button" data-v="5">Quick · 5</button><button type="button" data-v="10">Normal · 10</button><button type="button" data-v="20">Big · 20</button></div></label>
     <button type="button" class="btn ghost small" id="edFocus" style="align-self:flex-start">Focus on this now</button>
     <a class="cal" id="edCal" target="_blank" rel="noopener" hidden>Add to Google Calendar ↗</a>
+    </div>
     <div class="acts"><button class="btn" id="edSave">Save</button><button class="btn ghost danger" id="edDel">Delete</button><button class="btn ghost" data-close>Cancel</button></div>
   </div>
 
@@ -811,7 +816,7 @@ const key=()=>el('div',{class:'key'},el('span',{},el('i'),'Just mine'),el('span'
 const sorted=l=>l.sort((x,y)=>prio(y)-prio(x)||(x.due||x.date||'9').localeCompare(y.due||y.date||'9')||byNew(x,y));
 const doneNow=f=>vis().filter(it=>it.done&&it.doneAt&&ymd(new Date(it.doneAt))===today()&&f(it)).sort((x,y)=>y.doneAt-x.doneAt);
 function accept(it,plan){
-  if(plan){openEdit(it.id);ui.accepting=true;$('edTitle').textContent='Add to your schedule';$('edSave').textContent='Accept and plan';if(!$('edDate').value)$('edDate').value=today();if(seg('edKind')==='inbox')seg('edKind','todo');calLink();return;}
+  if(plan){openEdit(it.id);ui.accepting=true;$('edTitle').textContent='Add to your schedule';edMore(true);$('edSave').textContent='Accept and plan';if(!$('edDate').value)$('edDate').value=today();if(seg('edKind')==='inbox')seg('edKind','todo');calLink();return;}
   patch('items',it.id,{ask:'accepted',kind:it.kind==='inbox'?'todo':it.kind,askHide:false});toast('Added to your to-dos. '+name(it.askedBy)+' will see you accepted.');}
 function vInbox(){
   const o=other(ui.me),list=vis().filter(it=>it.kind==='inbox'&&!it.done).sort(byNew),rq=reqs().sort(byNew),mine=asked().sort(byNew);
@@ -1030,7 +1035,7 @@ function openEdit(id,preset){const it=id?S.items[id]:blank(preset);if(!it)return
   $('edText').value=it.text;seg('edKind',it.kind);for(const b of [...$('edOwner').children].slice(0,2))b.textContent=b.dataset.v===ui.me?'Just me':'For '+name(b.dataset.v);seg('edOwner',it.owner);
   {const cs=cats().concat(it.cat&&!cats().includes(it.cat)?[it.cat]:[]);$('edCat').replaceChildren(el('option',{value:'',text:'None'}),...cs.map(c=>el('option',{text:c})));}$('edCat').value=it.cat||'';$('edCatNew').value='';$('edDate').value=it.date||'';$('edStart').value=it.start||'';$('edEnd').value=it.end||'';seg('edPts',it.points||10);
   seg('edRep',it.repeat||'none');seg('edImp',Number(it.imp)||0);seg('edUrg',Number(it.urg)||0);$('edDue').value=it.due||'';$('edEst').value=it.est||'';seg('edPart',it.part||'');edSt=(it.steps||[]).map(x=>({t:x.t,d:!!x.d}));drawSteps();$('edStepNew').value='';$('edFocus').hidden=!id||it.done;$('edNote').value=it.note||'';
-  const d=$('edDel');delete d.dataset.sure;d.textContent='Delete';calLink();ptsVis();show('edSheet');if(!id&&!it.text)$('edText').focus();}
+  const d=$('edDel');delete d.dataset.sure;d.textContent='Delete';calLink();ptsVis();edMore(false,id?moreSet(it):0);show('edSheet');if(!id&&!it.text)$('edText').focus();}
 let edSt=[];
 function drawSteps(){$('edSteps').replaceChildren(...edSt.map((x,i)=>el('div',{class:'step'},el('span',{text:(x.d?'✓ ':'')+x.t}),el('button',{type:'button',class:'x','aria-label':'Remove step: '+x.t,text:'×',onclick:()=>{edSt.splice(i,1);drawSteps();}}))));}
 function addStep(){const t=$('edStepNew').value.trim();if(!t)return;edSt.push({t,d:false});$('edStepNew').value='';drawSteps();$('edStepNew').focus();}
@@ -1060,6 +1065,12 @@ $('edSave').onclick=()=>{const id=ui.editId,text=$('edText').value.trim();if(!te
   else if(ui.accepting&&prev)toast('Planned. '+name(prev.askedBy)+' will see you accepted.');
   hide();};
 $('edKind').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.dataset.v==='shopping'&&!ui.editId)seg('edOwner','both');ptsVis();});
+// The add/edit window starts simple; everything else sits behind "More details".
+const moreSet=it=>[it.cat,it.start,it.part,it.due,it.repeat&&it.repeat!=='none',Number(it.imp),Number(it.urg),(it.steps||[]).length,it.est,it.note,it.points&&Number(it.points)!==10&&it.kind!=='shopping'].filter(Boolean).length;
+let edMoreN=0;
+function edMore(open,n){if(n!=null)edMoreN=n;$('edMore').hidden=!open;const b=$('edMoreBtn');b.setAttribute('aria-expanded',String(open));
+  b.textContent=open?'Fewer details':'More details'+(edMoreN?' · '+edMoreN+' set':'')+' ▾';}
+$('edMoreBtn').onclick=()=>edMore($('edMore').hidden);
 function ptsVis(){$('edPts').closest('label').hidden=seg('edKind')==='shopping';}
 $('edDel').onclick=e=>twoTap(e.currentTarget,()=>{const id=ui.editId;hide();if(id)del('items',id);});
 
