@@ -312,6 +312,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .bnow .fpose svg{width:170px}
 .blog{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .blog .rw:first-child{border-top:0}
+.bdate{flex:none;width:auto;min-height:36px;padding:5px 8px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-size:14px;color:var(--ink)}
 .blog .rw .who{font-size:12px;font-weight:700;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){.zz,.wag{animation:none}.side{transition:none}.bit{display:none}.agla{transition:none}.agla.up .bell{animation:none}.bar i,.check i{transition:none}}
 </style>
@@ -857,7 +858,20 @@ function vShop(){
   return [el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Shopping'}),el('span',{text:open.length+' to buy'})),
       open.length?el('div',{class:'list'},open.map(it=>el('div',{class:'shoprow'+(it.owner==='both'?' tog':'')},el('button',{class:'check','aria-label':'Got it: '+it.text,onclick:e=>toggle(it,e)},el('i')),(lb=>el('button',{style:'flex:1;min-width:0;overflow-wrap:anywhere;text-align:left','aria-label':'Edit: '+it.text,onclick:()=>openEdit(it.id)},it.text,lb?el('small',{class:'ago',style:'display:block;font-size:13px;font-weight:500;color:var(--muted)',text:'last bought '+boughtAgo(lb)}):null))(lastBought(it.text))))):
       el('p',{class:'empty',text:'Nothing to buy. Type into the bar above the moment something runs out.'})),
-    again.length?el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Buy again'}),el('span',{text:'last bought'})),el('div',{class:'chips'},again.map(a=>el('button',{class:'chip','aria-label':'Add '+a.t+' again, last bought '+boughtAgo(a.at),onclick:()=>{put('items',uid(),fresh(blank({text:a.t,kind:'shopping',owner:'both',points:5})));toast('Added '+a.t+'. Last bought '+boughtAgo(a.at)+'.');}},'+ '+a.t,el('small',{class:'ago',text:' · '+boughtAgo(a.at)}))))):null];}
+    again.length?el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Buy again'}),el('span',{text:'last bought'})),el('div',{class:'chips'},again.map(a=>el('button',{class:'chip','aria-label':'Add '+a.t+' again, last bought '+boughtAgo(a.at),onclick:()=>{put('items',uid(),fresh(blank({text:a.t,kind:'shopping',owner:'both',points:5})));toast('Added '+a.t+'. Last bought '+boughtAgo(a.at)+'.');}},'+ '+a.t,el('small',{class:'ago',text:' · '+boughtAgo(a.at)}))))):null,
+    recentBought()];}
+// Recently bought: fix the date when something was ticked late, or put it back on the list.
+function recentBought(){const all=vis().filter(it=>it.kind==='shopping'&&it.done).sort((x,y)=>(y.doneAt||0)-(x.doneAt||0)),l=all.slice(0,ui.boughtAll?60:8);
+  if(!l.length)return null;
+  return el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Recently bought'}),el('span',{text:'tap a date to change it'})),
+    el('div',{class:'blog'},l.map(it=>el('div',{class:'rw'},
+      el('span',{},it.text,el('small',{style:'display:block;font-size:12.5px;color:var(--muted)',text:boughtAgo(it.doneAt)+(it.doneBy?' · '+name(it.doneBy):'')})),
+      el('input',{type:'date',class:'bdate','aria-label':'Date '+it.text+' was bought',value:it.doneAt?ymd(new Date(it.doneAt)):today(),max:today(),
+        onchange:e=>{const v=e.target.value;if(!v||v>today())return;const [y,m,d]=v.split('-').map(Number),old=new Date(it.doneAt||Date.now());
+          const at=Math.min(Date.now(),new Date(y,m-1,d,old.getHours(),old.getMinutes()).getTime());
+          patch('items',it.id,{doneAt:at});toast(it.text+': bought '+boughtAgo(at)+'.');}}),
+      el('button',{class:'x','aria-label':'Put '+it.text+' back on the list',title:'Put back on the list',text:'↺',onclick:()=>{patch('items',it.id,{done:false,doneAt:null,doneBy:null});toast(it.text+' is back on the list.');}})))),
+    all.length>8?el('button',{class:'btn ghost small',style:'align-self:flex-start',text:ui.boughtAll?'Show less':'Show all '+all.length,onclick:()=>{ui.boughtAll=!ui.boughtAll;render();}}):null);}
 function boughtAgo(at){if(!at)return 'a while ago';const d=ymd(new Date(at)),t=today();if(d===t)return 'today';if(d===addDays(t,-1))return 'yesterday';
   const n=Math.round((new Date(t+'T12:00')-new Date(d+'T12:00'))/864e5);if(n<14)return n+' days ago';if(n<60)return Math.round(n/7)+' weeks ago';
   const [y,m,dd]=d.split('-').map(Number);return 'on '+new Date(y,m-1,dd).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:y===new Date().getFullYear()?undefined:'numeric'});}
