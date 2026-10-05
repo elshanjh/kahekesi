@@ -365,6 +365,10 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
       <button type="button" class="btn ghost small" id="edTom">Tomorrow</button>
       <button type="button" class="btn ghost small" id="edNoDay">No day</button>
     </div>
+    <div class="r" id="edDoneRow" hidden>
+      <label class="f">Done on<input class="field" type="date" id="edDoneD"></label>
+      <label class="f">At<input class="field" type="time" id="edDoneT"></label>
+    </div>
     <label class="f">Size. Quick ones go in the quick list<div class="seg" id="edPts">
       <button type="button" data-v="5">Quick · 5</button><button type="button" data-v="10">Normal · 10</button><button type="button" data-v="20">Big · 20</button></div></label>
     <button type="button" class="btn ghost" id="edMoreBtn" aria-expanded="false" aria-controls="edMore">More details</button>
@@ -702,6 +706,13 @@ function drawBreak(){const box=$('breakBody'),mb=myBreak(),o=other(ui.me);
     el('button',{class:'btn ghost small',style:'align-self:flex-start',text:'Already had it? Log '+BUI.mins+' min',onclick:logBreak}),
     mine.length?el('p',{class:'fmeta',style:'margin:0',text:'Today so far: '+mine.length+(mine.length===1?' break':' breaks')+', '+fmtMins(mine.reduce((n,b)=>n+bmins(b),0))}):null].filter(Boolean));}
 $('breakBtn').onclick=openBreak;
+// Your own breaks on your Schedule day. The partner's never show here; theirs are on Activity if they shared them.
+function myBreaks(day){const l=Object.values(S.breaks).filter(b=>b.who===ui.me&&ymd(new Date(b.start))===day).sort((x,y)=>x.start-y.start);
+  if(!l.length)return null;
+  return el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Your breaks'}),el('span',{text:fmtMins(l.reduce((n,b)=>n+bmins(b),0))})),
+    el('div',{class:'blog'},l.map(b=>{const k=bkInfo(b);return el('div',{class:'rw'},el('span',{class:'c',style:'min-width:44px',text:hm(b.start)}),
+      el('span',{},k.e+' '+k.l+(b.private?' 🔒':'')),el('span',{class:'c',text:b.end?fmtMins(bmins(b)):'now'}),
+      el('button',{class:'x','aria-label':'Remove break: '+k.l,text:'×',onclick:e=>twoTap(e.currentTarget,()=>delBreak(b))}));})));}
 
 /* ---------- activity: what each of you did on a day. Breaks live here, not on the Schedule.
    On the partner's page their personal tasks stay hidden, only a count shows; private breaks never reach the partner. ---------- */
@@ -710,7 +721,7 @@ function vActivity(){
   const done=items().filter(it=>it.done&&it.doneBy===who&&on(it.doneAt));
   const shown=mine?done:done.filter(it=>it.owner==='both'||it.askedBy===ui.me||it.kind==='shopping'),hiddenN=done.length-shown.length;
   const brs=Object.values(S.breaks).filter(b=>b.who===who&&on(b.start));
-  const ev=[...shown.map(it=>({t:it.doneAt,e:it.kind==='shopping'?'🛒':'✓',l:(it.kind==='shopping'?'Bought ':'')+it.text,side:pts(it)?'+'+pts(it):''})),
+  const ev=[...shown.map(it=>({t:it.doneAt,e:it.kind==='shopping'?'🛒':'✓',l:(it.kind==='shopping'?'Bought ':'')+it.text,side:pts(it)?'+'+pts(it):'',it:mine&&it.kind!=='shopping'?it:null})),
     ...brs.map(b=>{const k=bkInfo(b);return {t:b.start,e:k.e,l:k.l+(b.private?' 🔒':''),side:b.end?fmtMins(bmins(b)):'now',b};})].sort((x,y)=>y.t-x.t);
   const tasks=done.filter(it=>it.kind!=='shopping'),bm=c=>brs.filter(b=>!c||bkInfo(b).c===c).reduce((n,b)=>n+bmins(b),0);
   const seg=el('div',{class:'seg',style:'margin-bottom:12px'},[[ui.me,'You'],[o,name(o)]].map(([p,l])=>el('button',{'aria-pressed':String(who===p),text:l,onclick:()=>{ui.actWho=p;render();}})));
@@ -720,7 +731,7 @@ function vActivity(){
   const strip=el('div',{class:'strip',style:'margin-bottom:14px'},el('span',{},el('b',{text:String(tasks.length)}),tasks.length===1?' task done':' tasks done'),
     el('span',{},el('b',{text:String(tasks.reduce((n,it)=>n+pts(it),0))}),' pts'),
     el('span',{},el('b',{text:String(brs.length)}),(brs.length===1?' break':' breaks')+(brs.length?', '+fmtMins(bm())+[['recharge',bm('recharge')],['screens',bm('screen')]].filter(x=>x[1]).map(x=>' · '+x[0]+' '+fmtMins(x[1])).join(''):'')));
-  const list=ev.length?el('div',{class:'blog'},ev.map(x=>el('div',{class:'rw'},el('span',{class:'c',style:'min-width:44px',text:hm(x.t)}),el('span',{},x.e+' '+x.l),el('span',{class:'c',text:x.side}),
+  const list=ev.length?el('div',{class:'blog'},ev.map(x=>el('div',{class:'rw'},el('span',{class:'c',style:'min-width:44px',text:hm(x.t)}),x.it?el('button',{style:'flex:1;min-width:0;text-align:left;overflow-wrap:anywhere','aria-label':'Edit '+x.it.text,onclick:()=>openEdit(x.it.id)},x.e+' '+x.l):el('span',{},x.e+' '+x.l),el('span',{class:'c',text:x.side}),
       x.b&&mine?el('button',{class:'x','aria-label':'Remove break','text':'×',onclick:e=>twoTap(e.currentTarget,()=>delBreak(x.b))}):null))):
     el('p',{class:'empty',text:mine?'Nothing here yet for '+dayLow(d)+'. Ticked tasks and breaks show up here.':'Nothing '+name(o)+' shared for '+dayLow(d)+'.'});
   return [seg,nav,strip,list,
@@ -976,6 +987,7 @@ function vDay(){
   else out.push(sec('Morning','until 12:00',srt(main.filter(i=>partOf(i)==='morning'))),sec('Afternoon','12:00 to 17:00',srt(main.filter(i=>partOf(i)==='afternoon'))),
     sec('Evening','after 17:00',srt(main.filter(i=>partOf(i)==='evening'))),sec('Any time','',srt(main.filter(i=>!partOf(i)))));
   if(done.length)out.push(section('Done',done,'',false,done.length+' of '+all.length));
+  out.push(myBreaks(ui.day));
   return out;
 }
 function vRewards(){
@@ -1081,7 +1093,10 @@ function openEdit(id,preset){const it=id?S.items[id]:blank(preset);if(!it)return
   $('edText').value=it.text;seg('edKind',it.kind);for(const b of [...$('edOwner').children].slice(0,2))b.textContent=b.dataset.v===ui.me?'Just me':'For '+name(b.dataset.v);seg('edOwner',it.owner);
   {const cs=cats().concat(it.cat&&!cats().includes(it.cat)?[it.cat]:[]);$('edCat').replaceChildren(el('option',{value:'',text:'None'}),...cs.map(c=>el('option',{text:c})));}$('edCat').value=it.cat||'';$('edCatNew').value='';$('edDate').value=it.date||'';$('edStart').value=it.start||'';$('edEnd').value=it.end||'';seg('edPts',it.points||10);
   seg('edRep',it.repeat||'none');seg('edImp',Number(it.imp)||0);seg('edUrg',Number(it.urg)||0);$('edDue').value=it.due||'';$('edEst').value=it.est||'';seg('edPart',it.part||'');edSt=(it.steps||[]).map(x=>({t:x.t,d:!!x.d}));drawSteps();$('edStepNew').value='';$('edFocus').hidden=!id||it.done;$('edNote').value=it.note||'';
-  const d=$('edDel');delete d.dataset.sure;d.textContent='Delete';calLink();ptsVis();edMore(false,id?moreSet(it):0);show('edSheet');if(!id&&!it.text)$('edText').focus();}
+  const d=$('edDel');delete d.dataset.sure;d.textContent='Delete';calLink();ptsVis();edMore(false,id?moreSet(it):0);
+  {const dn=!!(id&&it.done&&it.doneAt),w=new Date(it.doneAt||Date.now());$('edDoneRow').hidden=!dn;$('edDoneD').max=today();
+   if(dn){$('edDoneD').value=ymd(w);$('edDoneT').value=pad(w.getHours())+':'+pad(w.getMinutes());}}
+  show('edSheet');if(!id&&!it.text)$('edText').focus();}
 let edSt=[];
 function drawSteps(){$('edSteps').replaceChildren(...edSt.map((x,i)=>el('div',{class:'step'},el('span',{text:(x.d?'✓ ':'')+x.t}),el('button',{type:'button',class:'x','aria-label':'Remove step: '+x.t,text:'×',onclick:()=>{edSt.splice(i,1);drawSteps();}}))));}
 function addStep(){const t=$('edStepNew').value.trim();if(!t)return;edSt.push({t,d:false});$('edStepNew').value='';drawSteps();$('edStepNew').focus();}
@@ -1106,6 +1121,8 @@ $('edSave').onclick=()=>{const id=ui.editId,text=$('edText').value.trim();if(!te
   if(f.owner===oth&&(!prev||prev.owner!==oth)){ask.askedBy=ui.me;ask.ask='pending';ask.askHide=false;}
   else if(prev&&prev.askedBy&&f.owner!==prev.owner){ask.askedBy=null;ask.ask=null;}
   if(ui.accepting){ask.ask='accepted';ask.askHide=false;}
+  if(prev&&prev.done&&!$('edDoneRow').hidden&&$('edDoneD').value){const [y,m,d]=$('edDoneD').value.split('-').map(Number),[hh,mm]=($('edDoneT').value||'12:00').split(':').map(Number);
+    const at=Math.min(Date.now(),new Date(y,m-1,d,hh,mm).getTime());if(Math.abs(at-(prev.doneAt||0))>=6e4)f.doneAt=at;}
   if(id)patch('items',id,Object.assign(f,ask));else{put('items',uid(),Object.assign(fresh(f),ask));toast(date?'Added to '+fmtDay(date):'Added');}
   if(ask.ask==='pending')toast('Sent to '+name(oth)+'. You will see the answer in your inbox.');
   else if(ui.accepting&&prev)toast('Planned. '+name(prev.askedBy)+' will see you accepted.');
