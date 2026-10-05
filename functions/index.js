@@ -89,6 +89,16 @@ exports.onStatus = onDocumentWritten('status/{p}', async ev => {
   await to([other(p)], 'focus', {title: nm(c, p) + ' started focusing', body: a.text + (mins ? ' · ' + mins + ' min' : ''), tag: 'focus-' + p, url: '/'});
 });
 
+const BK = {tea: ['🍵', 'Tea'], lunch: ['🍽️', 'Lunch'], walk: ['🚶', 'Walk'], rest: ['😴', 'Rest'], youtube: ['📺', 'YouTube'], scroll: ['📱', 'Scrolling'], game: ['🎮', 'Game']};
+const bk = b => BK[b.kind] || ['⏸️', b.label || 'Break'];
+
+exports.onBreak = onDocumentCreated('breaks/{id}', async ev => {
+  const b = ev.data && ev.data.data();
+  if (!b || b.end || (b.who !== 'a' && b.who !== 'b')) return;
+  const c = await cfg(), [e, l] = bk(b);
+  await to([other(b.who)], 'breaks', {title: nm(c, b.who) + ' is taking a break', body: e + ' ' + l + (b.planned ? ' · ' + b.planned + ' min' : ''), tag: 'break-' + b.who, url: '/'});
+});
+
 exports.onRedeem = onDocumentCreated('redemptions/{id}', async ev => {
   const r = ev.data && ev.data.data();
   if (!r || (r.who !== 'a' && r.who !== 'b')) return;
@@ -129,6 +139,17 @@ exports.reminders = onSchedule({schedule: 'every 5 minutes', timeZone: 'Europe/T
     if (!people.length) continue;
     await d.ref.update({remindedFor: key});
     await to(people, 'plan', {title: 'At ' + x.start + ': ' + x.text, body: x.owner === 'both' ? 'Together with ' + nm(c, other(people[0])) : 'Coming up soon', tag: 'plan-' + d.id, url: '/?tab=day'});
+  }
+
+  // Break nudges: when a planned break runs out and the app did not already nudge.
+  const breaks = (await db.collection('breaks').where('end', '==', null).get()).docs;
+  for (const d of breaks) {
+    const b = d.data(), due = b.start + (b.planned || 0) * 60e3;
+    if (Date.now() - b.start > 4 * 3600e3) { await d.ref.update({end: due > b.start ? due : b.start + 4 * 3600e3, autoEnded: true, nudged: true}); continue; }
+    if (!b.planned || b.nudged || Date.now() < due) continue;
+    await d.ref.update({nudged: true});
+    const [e, l] = bk(b);
+    await to([b.who], 'nudge', {title: 'Break is up ' + e, body: 'Your ' + b.planned + ' min ' + l.toLowerCase() + ' break is over. Ready to go back?', tag: 'nudge', url: '/'});
   }
 
   const stRef = db.doc('notifier/state');

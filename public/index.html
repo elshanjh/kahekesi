@@ -75,6 +75,9 @@ body{--them:var(--b);--them-soft:var(--b-soft)} body[data-me="b"]{--them:var(--a
 .pill.ok{background:var(--b-soft);color:var(--b)} .pill.wait{background:var(--sunk);color:var(--muted)}
 .fbtn{flex:none;margin-left:auto;font-weight:700;font-size:14px;padding:7px 13px;border-radius:999px;background:var(--me);color:var(--on);font-variant-numeric:tabular-nums}
 .brand .fbtn+.me{margin-left:0}
+.brand .fbtn+.fbtn{margin-left:0}
+.fbtn.brk{background:var(--both)}.fbtn.brk.over{background:var(--warn)}
+@media (max-width:420px){.fbtn .bl{display:none}.fbtn{padding:7px 11px}.brand h1{display:none}.brand{gap:8px}.brand .face{margin-right:auto}}
 .fl{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--muted)}
 .step{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px 4px 4px 12px;color:var(--ink);font-weight:500;font-size:15px}
 .step span{flex:1;min-width:0;overflow-wrap:anywhere}
@@ -275,6 +278,16 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .agla.up .bell{animation:ring .5s ease-in-out 2;transform-origin:60px 96px}
 @keyframes ring{25%{transform:rotate(14deg)}75%{transform:rotate(-14deg)}}
 .cal{font-weight:600;font-size:14px;color:var(--both)}
+.bkinds{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.bkind{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);font-weight:600;font-size:14px;text-align:center;overflow-wrap:anywhere}
+.bkind b{font-size:24px;line-height:1.1;font-weight:400}
+.bkind[aria-pressed="true"]{border-color:var(--both);background:var(--both-soft);color:var(--ink)}
+.bnow{text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center}
+.bnow .ftime.over{color:var(--warn)}
+.bnow .fpose svg{width:170px}
+.blog{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.blog .rw:first-child{border-top:0}
+.blog .rw .who{font-size:12px;font-weight:700;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){.zz,.wag{animation:none}.side{transition:none}.bit{display:none}.agla{transition:none}.agla.up .bell{animation:none}.bar i,.check i{transition:none}}
 </style>
 
@@ -284,7 +297,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
   <div class="top">
     <div class="brand">
       <span class="face" id="face" aria-hidden="true"></span><h1>Kahekesi</h1><small id="mood">the two of us</small>
-      <button class="fbtn" id="focusBtn" aria-label="Focus on one thing">Focus</button><button class="me" id="meBtn" aria-label="Settings"><i class="dot" id="meDot"></i><span id="meName">…</span></button>
+      <button class="fbtn brk" id="breakBtn" aria-label="Take a break">☕<span class="bl"> Break</span></button><button class="fbtn" id="focusBtn" aria-label="Focus on one thing">Focus</button><button class="me" id="meBtn" aria-label="Settings"><i class="dot" id="meDot"></i><span id="meName">…</span></button>
     </div>
     <form class="capture" id="capForm">
       <input id="capInput" autocomplete="off" enterkeyhint="done" aria-label="New item" placeholder="Something on your mind? Drop it here">
@@ -377,6 +390,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
     <div class="acts"><button class="btn" id="setSave">Save</button><button class="btn ghost" data-close>Cancel</button></div>
   </div>
 
+  <div class="sheet" id="breakSheet" hidden><div id="breakBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
   <div class="sheet focus" id="focusSheet" hidden><div id="focusBody" style="display:flex;flex-direction:column;gap:16px;flex:1"></div></div>
 </div>
 <div class="agla" id="agla" aria-live="polite"><div class="say" id="say"></div><div id="aglaArt" aria-hidden="true"></div></div>
@@ -429,7 +443,7 @@ const span=it=>it.start?(it.start+(it.end?'–'+it.end:'')):'';
 
 /* ---------- state ---------- */
 const DEF={nameA:'Elshan',nameB:'Ayan',goalTitle:'',goalTarget:300,goalSince:0};
-const S={items:{},rewards:{},reds:{},status:{},cfg:Object.assign({},DEF)};
+const S={items:{},rewards:{},reds:{},status:{},breaks:{},cfg:Object.assign({},DEF)};
 const stored=ls.get('me');
 const ui={tab:(t=>!t||t==='lists'?(t?'todo':'inbox'):t)(new URLSearchParams(location.search).get('tab')||ls.get('tab')),pose:Math.floor(Math.random()*5),calOpen:false,catsOpen:false,low:ls.get('low')==='1',
   me:stored==='b'?'b':'a',meKnown:stored==='a'||stored==='b',day:today(),month:today().slice(0,7),filter:'all',cat:'',shop:false,review:false,editId:null,sound:ls.get('sound')!=='off'};
@@ -444,7 +458,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 
 /* ---------- storage ---------- */
 function fail(e){toast(e&&e.code==='invalid_argument'?'You have view-only access to this page.':e&&e.code==='quota_exceeded'?'Storage is full. Delete some old items.':'Could not save. Check your connection and try again.');}
-const KEY={items:'items',rewards:'rewards',redemptions:'reds',status:'status'};
+const KEY={items:'items',rewards:'rewards',redemptions:'reds',status:'status',breaks:'breaks'};
 async function put(coll,id,data){if(db){try{await db.collection(coll).doc(id).set(data)}catch(e){fail(e)}}else{S[KEY[coll]][id]=Object.assign({id},data);render();}}
 async function patch(coll,id,data){if(db){try{await db.collection(coll).doc(id).update(data)}catch(e){fail(e)}}else{Object.assign(S[KEY[coll]][id],data);render();}}
 async function del(coll,id){if(db){try{await db.collection(coll).doc(id).delete()}catch(e){fail(e)}}else{delete S[KEY[coll]][id];render();}}
@@ -555,12 +569,82 @@ const mmss=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return Math.floor(s/60)+'
 function tick(){const left=F.end?F.end-Date.now():0;
   if(F.end&&left<=0){F.end=0;F.ended=true;setStatus('');chime();setTimeout(chime,350);if($('focusSheet').hidden||$('overlay').hidden)cheer('Time is up. Tap Focus to wrap up.',true);else drawFocus();}
   $('focusBtn').textContent=F.end?mmss(F.end-Date.now()):F.free?'Working':F.ended?'Time!':'Focus';
-  const t=$('fTime');if(t&&F.end)t.textContent=mmss(F.end-Date.now());}
+  const t=$('fTime');if(t&&F.end)t.textContent=mmss(F.end-Date.now());
+  breakTick();}
 setInterval(tick,1000);setInterval(()=>drawWith(),30000);
 function drawWith(){const o=other(ui.me),st=S.status[o],now=Date.now(),on=st&&st.text&&(st.until?st.until>now:now-st.at<2*36e5),box=$('withNote');
+  const tb=theirBreak();
+  if(tb){const k=bkInfo(tb),left=tb.start+(tb.planned||0)*6e4-now;box.hidden=false;
+    box.replaceChildren(el('p',{},el('strong',{text:name(o)+' is on a break'}),': '+k.e+' '+k.l+' · '+(tb.planned?(left>=0?Math.max(1,Math.round(left/6e4))+' min left':Math.round(-left/6e4)+' min over'):bmins(tb)+' min so far')),
+      myBreak()?null:el('button',{class:'btn small',text:'Join with a break',onclick:openBreak}));return;}
   box.hidden=!on;if(!on){box.replaceChildren();return;}
   box.replaceChildren(el('p',{},el('strong',{text:name(o)+' is working right now'}),': '+st.text+(st.until?' · '+Math.max(1,Math.round((st.until-now)/6e4))+' min left':'')),
     el('button',{class:'btn small',text:'Start something too',onclick:()=>openFocus()}));}
+/* ---------- breaks: no points, just noticing where the time goes ---------- */
+const BK=[['tea','🍵','Tea',10,'recharge'],['lunch','🍽️','Lunch',30,'recharge'],['walk','🚶','Walk',20,'recharge'],['rest','😴','Rest',15,'recharge'],
+  ['youtube','📺','YouTube',15,'screen'],['scroll','📱','Scrolling',10,'screen'],['game','🎮','Game',20,'screen']];
+const BMINS=[5,10,15,20,30,45,60];
+const bkInfo=b=>{const k=BK.find(x=>x[0]===b.kind);return k?{e:k[1],l:k[2],c:k[4]}:{e:'⏸️',l:b.label||'Break',c:'other'};};
+const customs=()=>Array.isArray(S.cfg.breakCustom)?S.cfg.breakCustom:[];
+const myBreak=()=>Object.values(S.breaks).find(b=>b.who===ui.me&&!b.end);
+const theirBreak=()=>Object.values(S.breaks).find(b=>b.who===other(ui.me)&&!b.end&&Date.now()-b.start<4*36e5);
+const bmins=b=>Math.max(1,Math.round(((b.end||Date.now())-b.start)/6e4));
+const hm=t=>{const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes());};
+const fmtMins=n=>n<60?n+' min':Math.floor(n/60)+' h'+(n%60?' '+(n%60)+' min':'');
+const BUI={kind:'tea',label:'',mins:10,typing:false},nudged=new Set();
+let bkBtn='';
+function breakTick(){const mb=myBreak(),b=$('breakBtn');let html,over=false;
+  if(mb){const left=mb.start+(mb.planned||0)*6e4-Date.now();over=!!mb.planned&&left<0;
+    html=bkInfo(mb).e+' '+(mb.planned?(left>=0?mmss(left):'+'+mmss(-left)):mmss(Date.now()-mb.start));
+    if(mb.planned&&left<=0&&!mb.nudged&&!nudged.has(mb.id)){nudged.add(mb.id);chime();setTimeout(chime,350);
+      cheer('Your '+mb.planned+' min '+bkInfo(mb).l.toLowerCase()+' break is up. Ready to go back?',true);
+      if(!document.hidden)patch('breaks',mb.id,{nudged:true});}
+    const bt=$('bTime');if(bt){bt.textContent=mb.planned?(left>=0?mmss(left):'+'+mmss(-left)):mmss(Date.now()-mb.start);bt.classList.toggle('over',over);}}
+  else html='☕<span class="bl"> Break</span>';
+  if(html!==bkBtn){b.innerHTML=html;bkBtn=html;}b.classList.toggle('over',over);}
+function openBreak(){BUI.typing=false;show('breakSheet');drawBreak();}
+function pickedBreak(){if(BUI.kind==='other'){const l=BUI.label.trim();if(!l){toast('Give the break a name first.');return null;}return {kind:'other',label:l};}return {kind:BUI.kind};}
+function rememberCustom(l){if(l&&!customs().includes(l))saveCfg({breakCustom:[l,...customs()].slice(0,8)});}
+function startBreak(){const k=pickedBreak();if(!k)return;if(F.end||F.free)stopTimer();
+  const now=Date.now();put('breaks',uid(),Object.assign(k,{who:ui.me,start:now,end:null,planned:BUI.mins,nudged:false,createdAt:now}));
+  if(k.label)rememberCustom(k.label);chime();cheer('Enjoy it. I will tell you when '+BUI.mins+' min are up.',true);hide();}
+function logBreak(){const k=pickedBreak();if(!k)return;const now=Date.now();
+  put('breaks',uid(),Object.assign(k,{who:ui.me,start:now-BUI.mins*6e4,end:now,planned:BUI.mins,nudged:true,createdAt:now}));
+  if(k.label)rememberCustom(k.label);toast('Logged: '+bkInfo(k).l+', '+BUI.mins+' min');hide();}
+function endBreak(b){patch('breaks',b.id,{end:Date.now(),nudged:true});chime();cheer('Welcome back. That was '+fmtMins(bmins(b))+'.');hide();}
+function drawBreak(){const box=$('breakBody'),mb=myBreak(),o=other(ui.me);
+  if(mb){const k=bkInfo(mb),left=mb.start+(mb.planned||0)*6e4-Date.now();
+    const twoTapBtn=el('button',{class:'btn ghost small danger',text:'Cancel, do not log it',onclick:e=>twoTap(e.currentTarget,()=>{del('breaks',mb.id);hide();})});
+    box.replaceChildren(el('div',{class:'bnow'},el('span',{class:'k',style:'font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--both)',text:'On a break'}),
+      el('h2',{class:'ftask',text:k.e+' '+k.l}),el('div',{class:'ftime'+(mb.planned&&left<0?' over':''),id:'bTime',text:mb.planned?(left>=0?mmss(left):'+'+mmss(-left)):mmss(Date.now()-mb.start)}),
+      el('span',{class:'fmeta',text:(mb.planned?mb.planned+' min break':'Break')+', started '+hm(mb.start)+'. '+name(o)+' can see it.'}),el('div',{class:'fpose pose sleepy'})),
+      el('div',{class:'acts'},el('button',{class:'btn',text:'Back to work',onclick:()=>endBreak(mb)}),
+        el('button',{class:'btn ghost',text:'+5 min',onclick:()=>{patch('breaks',mb.id,{planned:(mb.planned||0)+5,nudged:false});nudged.delete(mb.id);toast('Five more minutes.');setTimeout(drawBreak,50);}})),
+      el('div',{class:'r'},twoTapBtn,el('button',{class:'btn ghost small',text:'Hide',onclick:hide})));
+    box.querySelector('.fpose').innerHTML=pose('sleep','bk');return;}
+  const chip=(id,e,l,on,fn)=>el('button',{type:'button',class:'bkind','aria-pressed':String(on),onclick:fn},el('b',{text:e}),l);
+  const pick=(kind,label,mins)=>()=>{BUI.kind=kind;BUI.label=label||'';BUI.typing=false;if(mins)BUI.mins=mins;drawBreak();};
+  const kinds=[...BK.map(k=>chip(k[0],k[1],k[2],BUI.kind===k[0],pick(k[0],'',k[3]))),
+    ...customs().map(l=>chip('c'+l,'⏸️',l,BUI.kind==='other'&&!BUI.typing&&BUI.label===l,pick('other',l))),
+    chip('new','➕','Other',BUI.kind==='other'&&BUI.typing,()=>{BUI.kind='other';BUI.label='';BUI.typing=true;drawBreak();setTimeout(()=>$('bkNew')&&$('bkNew').focus(),30);})];
+  const input=BUI.typing?el('input',{class:'field',id:'bkNew',maxlength:'24',placeholder:'What kind of break?','aria-label':'Break name',value:BUI.label,oninput:e=>{BUI.label=e.target.value;}}):null;
+  const mins=el('div',{class:'seg'},BMINS.map(m=>el('button',{type:'button','aria-pressed':String(BUI.mins===m),text:String(m),onclick:()=>{BUI.mins=m;drawBreak();}})));
+  const mine=Object.values(S.breaks).filter(b=>b.who===ui.me&&b.end&&ymd(new Date(b.start))===today());
+  box.replaceChildren(...[el('h2',{text:'Take a break'}),el('p',{class:'fmeta',style:'margin:0',text:'No points for breaks. It is just so you both see where the time goes.'}),
+    el('div',{class:'bkinds'},kinds),input,el('label',{class:'f'},'How long, in minutes',mins),
+    el('div',{class:'acts'},el('button',{class:'btn',text:'Start break',onclick:startBreak}),el('button',{class:'btn ghost',text:'Cancel',onclick:hide})),
+    el('button',{class:'btn ghost small',style:'align-self:flex-start',text:'Already had it? Log '+BUI.mins+' min',onclick:logBreak}),
+    mine.length?el('p',{class:'fmeta',style:'margin:0',text:'Today so far: '+mine.length+(mine.length===1?' break':' breaks')+', '+fmtMins(mine.reduce((n,b)=>n+bmins(b),0))}):null].filter(Boolean));}
+function breaksSection(day){
+  const l=Object.values(S.breaks).filter(b=>ymd(new Date(b.start))===day).sort((x,y)=>x.start-y.start);
+  if(!l.length)return null;
+  const tot=p=>l.filter(b=>b.who===p).reduce((n,b)=>n+bmins(b),0);
+  return el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Breaks'}),el('span',{text:[['a',tot('a')],['b',tot('b')]].filter(x=>x[1]).map(x=>name(x[0])+' '+fmtMins(x[1])).join(' · ')})),
+    el('div',{class:'blog'},l.map(b=>{const k=bkInfo(b);return el('div',{class:'rw'},el('span',{},k.e+' '+k.l+' ',el('span',{class:'who',text:name(b.who)})),
+      el('span',{class:'c',text:hm(b.start)+' · '+(b.end?fmtMins(bmins(b)):'now')}),
+      b.who===ui.me?el('button',{class:'x','aria-label':'Remove break: '+k.l,text:'×',onclick:e=>twoTap(e.currentTarget,()=>del('breaks',b.id))}):null);})));}
+$('breakBtn').onclick=openBreak;
+
 function drawFocus(){const box=$('focusBody'),it=F.id&&S.items[F.id],run=F.end||F.free,o=other(ui.me);
   const close=el('button',{class:'btn ghost',text:run?'Hide, keep going':'Close',onclick:hide});
   if(F.finished){box.replaceChildren(el('span',{class:'k',text:'Done'}),el('h2',{class:'ftask',text:'Nice. One thing less.'}),el('div',{class:'fpose pose happy'}),el('div',{class:'grow'}),
@@ -690,7 +774,10 @@ function vReview(){
   const late=vis().filter(it=>it.date&&it.date<today()&&!it.done).sort((x,y)=>x.date.localeCompare(y.date));
   const stale=vis().filter(it=>!it.done&&!it.date&&(it.kind==='todo')&&(it.createdAt||0)<Date.now()-14*864e5).sort((x,y)=>(x.createdAt||0)-(y.createdAt||0));
   const inbox=vis().filter(it=>it.kind==='inbox'&&!it.done).sort(byNew);
+  const bw=p=>{const l=Object.values(S.breaks).filter(b=>b.who===p&&b.start>=mon),by=c=>l.filter(b=>bkInfo(b).c===c).reduce((n,b)=>n+bmins(b),0),all=l.reduce((n,b)=>n+bmins(b),0);
+    return all?fmtMins(all)+' in '+l.length+(l.length===1?' break':' breaks')+' ('+[['recharge',by('recharge')],['screens',by('screen')],['other',by('other')]].filter(x=>x[1]).map(x=>x[0]+' '+fmtMins(x[1])).join(', ')+')':'no breaks logged';};
   return [el('section',{class:'sec'},el('h2',{text:'This week'}),el('div',{class:'strip'},el('span',{},el('b',{text:name('a')}),': '+wk('a')),el('span',{},el('b',{text:name('b')}),': '+wk('b')))),
+    el('section',{class:'sec'},el('h2',{text:'Breaks this week'}),el('div',{class:'strip',style:'flex-direction:column;gap:4px'},el('span',{},el('b',{text:name('a')}),': '+bw('a')),el('span',{},el('b',{text:name('b')}),': '+bw('b')))),
     el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Slipped past their day'}),late.length?el('button',{class:'btn small',text:'Move all to today',onclick:async()=>{for(const it of late)await patch('items',it.id,{date:today()});toast('Moved '+late.length+' to today');}}):null),
       late.length?el('div',{class:'list'},late.map(it=>row(it,true))):el('p',{class:'empty',text:'Nothing overdue.'})),
     (l=>l.length?section('Past their deadline',l,'',true,l.length+' late'):null)(vis().filter(it=>it.due&&it.due<today()&&!it.done)),
@@ -763,6 +850,7 @@ function vDay(){
   else out.push(sec('Morning','until 12:00',srt(main.filter(i=>partOf(i)==='morning'))),sec('Afternoon','12:00 to 17:00',srt(main.filter(i=>partOf(i)==='afternoon'))),
     sec('Evening','after 17:00',srt(main.filter(i=>partOf(i)==='evening'))),sec('Any time','',srt(main.filter(i=>!partOf(i)))));
   if(done.length)out.push(section('Done',done,'',false,done.length+' of '+all.length));
+  out.push(breaksSection(ui.day));
   return out;
 }
 function vRewards(){
@@ -851,6 +939,7 @@ function render(){
   $('view').replaceChildren(...built.filter(Boolean));
   if((focus==='rwTitle'||focus==='rwCost')&&$(focus))$(focus).focus();
   drawWith();if(!$('overlay').hidden&&!$('focusSheet').hidden)drawFocus();
+  if(!$('overlay').hidden&&!$('breakSheet').hidden&&!(document.activeElement&&document.activeElement.id==='bkNew'))drawBreak();
 }
 
 /* ---------- sheets ---------- */
@@ -925,7 +1014,7 @@ render();
   try{db=await new Promise(r=>{if(window.kkDb!==undefined)r(window.kkDb);else window.addEventListener('kk-db',e=>r(e.detail),{once:true});});}catch(e){db=null;}
   if(!db){$('offNote').hidden=false;return;}
   if(window.kkMe==='a'||window.kkMe==='b'){ui.me=window.kkMe;ui.meKnown=true;ls.set('me',ui.me);}
-  sub('items');sub('rewards');sub('redemptions');sub('status');
+  sub('items');sub('rewards');sub('redemptions');sub('status');sub('breaks');
   db.doc('config/main').onSnapshot(s=>{S.cfg=Object.assign({},DEF,s.exists?s.data():{});render();},()=>{});
 })();
 })();

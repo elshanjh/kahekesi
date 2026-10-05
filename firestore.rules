@@ -21,7 +21,7 @@ service cloud.firestore {
       }
     }
     match /{coll}/{id} {
-      allow read, write: if allowed() && coll in ['items', 'rewards', 'redemptions', 'status', 'config'];
+      allow read, write: if allowed() && coll in ['items', 'rewards', 'redemptions', 'status', 'config', 'breaks'];
     }
   }
 }
