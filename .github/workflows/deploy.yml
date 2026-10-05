@@ -32,9 +32,9 @@ jobs:
 
       - name: Firebase key
         env:
-          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SA: ${{ secrets.KAHEKESI || secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          if [ -z "$SA" ]; then echo "::error::The FIREBASE_SERVICE_ACCOUNT secret is missing. Add it under Settings > Secrets and variables > Actions."; exit 1; fi
+          if [ -z "$SA" ]; then echo "::error::The KAHEKESI secret (Firebase service-account key) is missing. Add it under Settings > Secrets and variables > Actions."; exit 1; fi
           printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
 

@@ -18,7 +18,7 @@ Shared lists, plans and rewards for two people, with Agla the cat. An installabl
 
 ## Deploying
 
-Pushing to `main` deploys. The workflow needs one repository secret, `FIREBASE_SERVICE_ACCOUNT`: the JSON key of the project's
+Pushing to `main` deploys. The workflow needs one repository secret, `KAHEKESI` (or `FIREBASE_SERVICE_ACCOUNT`): the JSON key of the project's
 `firebase-adminsdk` service account, with the Owner role. The project must be on the Blaze plan for the notification functions.
 
 To add people or import data once, run the **Deploy** workflow by hand (Actions → Deploy → Run workflow) and fill in the inputs.
