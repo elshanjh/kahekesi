@@ -89,11 +89,19 @@ const site = await step('find the hosting site', async () => {
 });
 
 await step('give the build account its roles', async () => {
-  const sa = `serviceAccount:${NUM}-compute@developer.gserviceaccount.com`;
-  const want = ['roles/cloudbuild.builds.builder', 'roles/logging.logWriter', 'roles/storage.objectViewer', 'roles/artifactregistry.writer'];
+  // The build and runtime account, plus the Pub/Sub and Eventarc agents that deliver database events to the functions.
+  for (const svc of ['pubsub.googleapis.com', 'eventarc.googleapis.com']) {
+    await api('POST', `https://serviceusage.googleapis.com/v1beta1/projects/${NUM}/services/${svc}:generateServiceIdentity`, {}).catch(() => {});
+  }
+  const compute = `serviceAccount:${NUM}-compute@developer.gserviceaccount.com`;
+  const want = [
+    [compute, ['roles/cloudbuild.builds.builder', 'roles/logging.logWriter', 'roles/storage.objectViewer', 'roles/artifactregistry.writer', 'roles/run.invoker', 'roles/eventarc.eventReceiver']],
+    [`serviceAccount:service-${NUM}@gcp-sa-pubsub.iam.gserviceaccount.com`, ['roles/iam.serviceAccountTokenCreator']],
+    [`serviceAccount:service-${NUM}@gcp-sa-eventarc.iam.gserviceaccount.com`, ['roles/eventarc.serviceAgent']],
+  ];
   const pol = await api('POST', `https://cloudresourcemanager.googleapis.com/v1/projects/${PID}:getIamPolicy`, {});
   let changed = false;
-  for (const role of want) {
+  for (const [sa, roles] of want) for (const role of roles) {
     let b = pol.bindings.find(x => x.role === role);
     if (!b) { b = {role, members: []}; pol.bindings.push(b); }
     if (!b.members.includes(sa)) { b.members.push(sa); changed = true; }
