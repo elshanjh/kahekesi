@@ -471,9 +471,10 @@ const span=it=>it.start?(it.start+(it.end?'–'+it.end:'')):'';
 const DEF={nameA:'Elshan',nameB:'Ayan',goalTitle:'',goalTarget:300,goalSince:0};
 const S={items:{},rewards:{},reds:{},status:{},breaks:{},cfg:Object.assign({},DEF)};
 const stored=ls.get('me');
-const ui={tab:(t=>!t||t==='lists'?(t?'todo':'inbox'):t)(new URLSearchParams(location.search).get('tab')||ls.get('tab')),pose:Math.floor(Math.random()*5),calOpen:false,catsOpen:false,low:ls.get('low')==='1',
+const ui={tab:new URLSearchParams(location.search).get('tab')||'day',pose:Math.floor(Math.random()*5),calOpen:false,catsOpen:false,low:ls.get('low')==='1',
   me:stored==='b'?'b':'a',meKnown:stored==='a'||stored==='b',day:today(),month:today().slice(0,7),filter:'all',cat:'',shop:false,review:false,editId:null,sound:ls.get('sound')!=='off'};
 let db=null;
+if(location.search)try{history.replaceState(null,'','/')}catch(e){}
 const name=p=>p==='a'?S.cfg.nameA:p==='b'?S.cfg.nameB:'Both';
 const other=p=>p==='a'?'b':'a';
 const items=()=>Object.values(S.items);
@@ -981,7 +982,7 @@ function render(){
   $('meName').textContent=name(ui.me);$('meDot').className='dot '+ui.me;
   $('whoNote').hidden=ui.meKnown;$('whoA').textContent=name('a');$('whoB').textContent=name('b');
   const isCat=ui.tab.slice(0,4)==='cat:',cur=isCat?ui.tab.slice(4):null,v=VIEWS[ui.tab]||(isCat?[cur,'Add to '+cur+'…']:VIEWS.inbox);
-  if(!VIEWS[ui.tab]&&!isCat)ui.tab='inbox';
+  if(!VIEWS[ui.tab]&&!isCat)ui.tab='day';
   $('mood').textContent=v[0];
   $('capInput').placeholder=ui.tab==='day'?'Plan for '+dayLow(ui.day)+'…':v[1];
   const dn=doneToday('a')+doneToday('b'),sk=streak();$('face').className='face '+(!dn?'sleepy':sk>=3?'playful':'awake');
@@ -990,14 +991,14 @@ function render(){
   const cnt={inbox:n(i=>i.kind==='inbox')+reqs().length+asked().filter(i=>i.ask!=='pending').length,todo:n(i=>i.kind==='todo'),day:n(i=>i.date===today()||i.due===today()),shopping:n(i=>i.kind==='shopping')};
   const showCats=ui.catsOpen||isCat;
   $('nav').replaceChildren(
-    nb('inbox','Inbox',cnt.inbox,null,'main'),nb('day','Schedule',cnt.day,null,'main'),
+    nb('day','Schedule',cnt.day,null,'main'),nb('inbox','Inbox',cnt.inbox,null,'main'),
     el('h3',{class:'main',text:'Lists'}),nb('todo','To-dos',cnt.todo,null,'main'),nb('shopping','Shopping',cnt.shopping,null,'main'),nb('idea','Ideas',n(i=>i.kind==='idea')),
     nb('rewards','Rewards',balance(ui.me)+' pts'),nb('review','Weekly review',n(i=>(i.date&&i.date<today())||(i.due&&i.due<today()))),
     el('button',{class:'nav grp','aria-expanded':String(showCats),onclick:()=>{ui.catsOpen=!showCats;if(isCat&&showCats)ui.tab='todo';render();}},el('span',{text:'Categories'}),el('b',{text:showCats?'Hide':'Show '+cats().length})),
     ...(showCats?cats().map(c=>nb('cat:'+c,c,n(i=>i.cat===c),hue(c))):[]));
   const tb=(id,label,count)=>el('button',{'aria-current':ui.tab===id?'page':null,onclick:()=>go(id)},el('b',{text:String(count)}),label);
   const extra=!['inbox','todo','day','shopping'].includes(ui.tab);
-  $('tabs').replaceChildren(tb('inbox','Inbox',cnt.inbox),tb('todo','To-dos',cnt.todo),tb('day','Schedule',cnt.day),tb('shopping','Shopping',cnt.shopping),
+  $('tabs').replaceChildren(tb('day','Schedule',cnt.day),tb('inbox','Inbox',cnt.inbox),tb('todo','To-dos',cnt.todo),tb('shopping','Shopping',cnt.shopping),
     el('button',{'aria-current':extra?'page':null,'aria-label':'More sections',onclick:openMenu},el('b',{text:'☰'}),'More'));
   $('sideScene').replaceChildren(scene('s'));
   if(db){const nw=reqs().filter(i=>!told.has(i.id)),ans=asked().filter(i=>i.ask==='accepted'&&!told.has('a'+i.id));
