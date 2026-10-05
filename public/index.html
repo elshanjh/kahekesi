@@ -498,7 +498,7 @@ function pose(n,s){const K='#3a302a',W='#fbf8f2',T='#7b6753',O='#dc8f43';
   return '<svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+g+'</svg>';}
 const POSES=[['sit','','Agla is keeping you company'],['sleep','sleepy','Agla is fast asleep'],['play','happy','Agla found the yarn'],['bag','','Agla is in the bag again'],['watch','','Agla is watching you work']];
 function scene(s){const p=POSES[ui.pose%POSES.length],dn=doneToday('a')+doneToday('b'),sk=streak();
-  const b=el('button',{class:'scene pose '+p[1],'aria-label':p[2]+'. Tap to see what else she does',onclick:()=>{ui.pose++;render();}});
+  const b=el('div',{class:'scene pose '+p[1],role:'img','aria-label':p[2]});
   b.innerHTML='<span class="cap"><b></b><small></small></span>'+pose(p[0],s);
   b.querySelector('b').textContent=p[2];b.querySelector('small').textContent=dn?dn+' done today'+(sk>=2?' · '+sk+'-day streak':''):'Nothing ticked yet today';return b;}
 function gcal(text,date,start,end){if(!date)return null;const d=date.replace(/-/g,'');let dates;
