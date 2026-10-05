@@ -93,6 +93,14 @@ body{--them:var(--b);--them-soft:var(--b-soft)} body[data-me="b"]{--them:var(--a
 .fstep span{flex:1;min-width:0;overflow-wrap:anywhere}
 .focus .r{justify-content:center}
 .focus .grow{flex:1}
+.fhead{display:flex;align-items:center;gap:8px}
+.fhead .ftask{flex:1;min-width:0}
+.farrow{flex:none;width:46px;height:46px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);font:500 28px/1 var(--body);display:grid;place-items:center;padding-bottom:3px;color:var(--ink)}
+.farrow:active{transform:scale(.9)}
+.farrow[disabled]{opacity:.3}
+.fhead.inr .ftask{animation:fin-r .25s ease-out}.fhead.inl .ftask{animation:fin-l .25s ease-out}
+@keyframes fin-r{from{opacity:0;transform:translateX(28px)}}@keyframes fin-l{from{opacity:0;transform:translateX(-28px)}}
+@media (prefers-reduced-motion: reduce){.fhead .ftask{animation:none!important}}
 .note.with{background:var(--them-soft);border-color:transparent}
 .note.warn{background:var(--warn-soft);border-color:transparent;flex-direction:column;flex-wrap:nowrap;align-items:stretch}
 .note.warn p{flex:none}
@@ -554,9 +562,12 @@ function toggle(it,ev){
 /* ---------- focus: one thing, a timer, and doing it together ---------- */
 const F={id:null,end:0,mins:0,free:false,ended:false,finished:false},skip=new Set();
 const isQuick=it=>Number(it.points)===5;
-function pickFocus(){const t=today(),pool=vis().filter(i=>!i.done&&i.kind==='todo'&&!skip.has(i.id)&&(!ui.low||isQuick(i)));
+function focusPool(){const t=today(),pool=vis().filter(i=>!i.done&&i.kind==='todo'&&(!ui.low||isQuick(i)));
   const sc=i=>(i.date&&i.date<=t?100:0)+(i.due&&i.due<=t?120:0)+(i.due===addDays(t,1)?40:0)+(Number(i.urg)||0)*30+(Number(i.imp)||0)*15+(i.start?10:0)-(i.ord||0)*.1;
-  pool.sort((x,y)=>sc(y)-sc(x));if(!pool.length&&skip.size){skip.clear();return pickFocus();}return pool[0]?pool[0].id:null;}
+  return pool.sort((x,y)=>sc(y)-sc(x)||(x.createdAt||0)-(y.createdAt||0)).map(i=>i.id);}
+function pickFocus(){const ids=focusPool(),fresh=ids.filter(id=>!skip.has(id));return (fresh[0]||ids[0])||null;}
+function stepFocus(n){const ids=focusPool();if(ids.length<2)return;const i=ids.indexOf(F.id);if(F.id)skip.add(F.id);
+  F.id=ids[((i<0?0:i)+n+ids.length)%ids.length];F.slide=n;drawFocus();}
 function setStatus(text,mins){const d={text:text||'',at:Date.now(),until:mins?Date.now()+mins*6e4:0};
   if(db)db.doc('status/'+ui.me).set(d).catch(()=>{});else S.status[ui.me]=d;}
 function openFocus(id){const cur=F.id&&S.items[F.id];
@@ -661,11 +672,16 @@ function drawFocus(){const box=$('focusBody'),it=F.id&&S.items[F.id],run=F.end||
     F.free?[el('p',{class:'fmeta',text:name(o)+' can see you are on it.'}),el('div',{class:'r'},el('button',{class:'btn ghost small',text:'Stop for now',onclick:()=>{stopTimer();drawFocus();}}))]:
     F.ended?[el('h2',{text:'Time is up. How did it go?'}),el('div',{class:'r'},el('button',{class:'btn ghost small',text:'Another '+(F.mins||15)+' min',onclick:()=>startTimer(F.mins||15)}),el('button',{class:'btn ghost small',text:'Stop for now',onclick:()=>{F.ended=false;tick();drawFocus();}}))]:
     [el('p',{class:'fmeta',text:'Only commit to a short stretch. '+name(o)+' will see you started.'}),el('div',{class:'r'},el('button',{class:'btn small',text:'Start 15 min',onclick:()=>startTimer(15)}),el('button',{class:'btn small',text:'Start 25 min',onclick:()=>startTimer(25)}),el('button',{class:'btn ghost small',text:'Start, no timer',onclick:()=>startTimer(0)}))];
-  box.replaceChildren(...[el('span',{class:'k',text:both?'Working alongside '+name(o):'Just one thing'}),el('h2',{class:'ftask',text:it.text}),el('span',{class:'fmeta',text:bits}),
+  const ids=run?[]:focusPool(),pos=ids.indexOf(it.id),many=ids.length>1;
+  const arrow=(n,lbl,ch)=>el('button',{class:'farrow','aria-label':lbl,disabled:!many,onclick:()=>stepFocus(n)},ch);
+  const head=el('div',{class:'fhead'+(F.slide?' in'+(F.slide>0?'r':'l'):'')},run?null:arrow(-1,'Previous task','‹'),el('h2',{class:'ftask',text:it.text}),run?null:arrow(1,'Next task','›'));
+  F.slide=0;
+  if(many){let sx=null,sy=0;head.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
+    head.addEventListener('touchend',e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5)stepFocus(dx<0?1:-1);});}
+  box.replaceChildren(...[el('span',{class:'k',text:both?'Working alongside '+name(o):'Just one thing'}),head,el('span',{class:'fmeta',text:bits+(many&&pos>=0?' · '+(pos+1)+' of '+ids.length:'')}),
     it.note?el('span',{class:'fmeta',text:it.note}):null,steps.length?el('div',{class:'fsteps'},steps):null,
     el('div',{class:'fpose pose'}),...timer,el('div',{class:'grow'}),
-    el('div',{class:'r'},el('button',{class:'btn',style:'flex:1 1 100%',text:'Done',onclick:e=>{stopTimer();F.id=null;F.finished=true;toggle(it,e);drawFocus();}}),
-      el('button',{class:'btn ghost',text:'Not this one',onclick:()=>{skip.add(it.id);stopTimer();F.id=pickFocus();drawFocus();}}),close)].filter(Boolean));
+    el('div',{class:'r'},el('button',{class:'btn',style:'flex:1 1 100%',text:'Done',onclick:e=>{stopTimer();F.id=null;F.finished=true;toggle(it,e);drawFocus();}}),close)].filter(Boolean));
   box.querySelector('.fpose').innerHTML=pose(run?'watch':'sit','f');tick();}
 
 /* ---------- rows ---------- */
