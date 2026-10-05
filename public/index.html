@@ -90,7 +90,8 @@ body{--them:var(--b);--them-soft:var(--b-soft)} body[data-me="b"]{--them:var(--a
 .fsteps{display:flex;flex-direction:column;gap:6px;text-align:left}
 .fstep{display:flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding-right:12px;font-weight:500;width:100%;text-align:left}
 .fstep.on span{text-decoration:line-through;color:var(--muted)}
-.fstep span{flex:1;min-width:0;overflow-wrap:anywhere}
+.fstep span{flex:1;min-width:0;overflow-wrap:anywhere;text-align:left}
+.fstep .check{flex:none}
 .focus .r{justify-content:center}
 .focus .grow{flex:1}
 .fhead{display:flex;align-items:center;gap:8px}
@@ -115,6 +116,7 @@ body{--them:var(--b);--them-soft:var(--b-soft)} body[data-me="b"]{--them:var(--a
 .scene svg{width:128px;height:auto;flex:none}
 .side .scene{margin:18px 0 0;flex-direction:column-reverse;align-items:stretch;padding:10px 12px}
 .side .scene svg{width:150px;align-self:center}
+.ej{display:none}.pose.judging .eo{display:none}.pose.judging .ej{display:block}
 .pose.sleepy .eo,.pose.happy .eo{display:none}.pose.sleepy .es,.pose.happy .eh{display:block}
 .zz{fill:var(--muted);font:700 15px var(--body);animation:zz 2.6s ease-in-out infinite}
 .ledge{fill:var(--sunk);stroke:var(--line);stroke-width:2}
@@ -479,7 +481,7 @@ const span=it=>it.start?(it.start+(it.end?'–'+it.end:'')):'';
 const DEF={nameA:'Elshan',nameB:'Ayan',goalTitle:'',goalTarget:300,goalSince:0};
 const S={items:{},rewards:{},reds:{},status:{},breaks:{},cfg:Object.assign({},DEF)};
 const stored=ls.get('me');
-const ui={tab:new URLSearchParams(location.search).get('tab')||'day',pose:Math.floor(Math.random()*5),calOpen:false,catsOpen:false,low:ls.get('low')==='1',
+const ui={tab:new URLSearchParams(location.search).get('tab')||'day',pose:Math.floor(Math.random()*1e6),calOpen:false,catsOpen:false,low:ls.get('low')==='1',
   me:stored==='b'?'b':'a',meKnown:stored==='a'||stored==='b',day:today(),month:today().slice(0,7),filter:'all',cat:'',shop:false,review:false,editId:null,sound:ls.get('sound')!=='off'};
 let db=null;
 if(location.search)try{history.replaceState(null,'','/')}catch(e){}
@@ -531,6 +533,7 @@ function cat(id){const k='#3a302a';return '<svg viewBox="0 0 120 112" xmlns="htt
 +'<path d="M24 38l9 6M20 50l10 3M36 26l5 9" stroke="#3d322a" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M96 38l-9 6M100 50l-10 3" stroke="#b56a25" stroke-width="3" stroke-linecap="round" fill="none"/></g>'
 +'<ellipse cx="60" cy="58" rx="44" ry="37" fill="none" stroke="'+k+'" stroke-width="2"/>'
 +'<g class="eo"><ellipse cx="42" cy="58" rx="8.5" ry="7.5" fill="#b8b048" stroke="'+k+'" stroke-width="1.5"/><ellipse cx="78" cy="58" rx="8.5" ry="7.5" fill="#b8b048" stroke="'+k+'" stroke-width="1.5"/><ellipse cx="42" cy="58" rx="3.2" ry="6" fill="#1c1714"/><ellipse cx="78" cy="58" rx="3.2" ry="6" fill="#1c1714"/><circle cx="44" cy="55" r="1.5" fill="#fff"/><circle cx="80" cy="55" r="1.5" fill="#fff"/></g>'
++'<g class="ej"><ellipse cx="42" cy="60" rx="8.5" ry="4" fill="#b8b048" stroke="'+k+'" stroke-width="1.5"/><ellipse cx="78" cy="60" rx="8.5" ry="4" fill="#b8b048" stroke="'+k+'" stroke-width="1.5"/><ellipse cx="42" cy="60" rx="1.8" ry="3.6" fill="#1c1714"/><ellipse cx="78" cy="60" rx="1.8" ry="3.6" fill="#1c1714"/><path d="M32 55L52 58M68 58L88 55" stroke="'+k+'" stroke-width="3" stroke-linecap="round"/></g>'
 +'<g class="es" fill="none" stroke="'+k+'" stroke-width="3" stroke-linecap="round"><path d="M34 57Q42 64 50 57"/><path d="M70 57Q78 64 86 57"/></g>'
 +'<g class="eh" fill="none" stroke="'+k+'" stroke-width="3" stroke-linecap="round"><path d="M34 60Q42 51 50 60"/><path d="M70 60Q78 51 86 60"/></g>'
 +'<path d="M56 68H64L60 73Z" fill="#e58f93" stroke="'+k+'" stroke-width="1" stroke-linejoin="round"/><path d="M60 73Q57 80 51 77M60 73Q63 80 69 77" fill="none" stroke="'+k+'" stroke-width="1.8" stroke-linecap="round"/>'
@@ -548,15 +551,27 @@ function pose(n,s){const K='#3a302a',W='#fbf8f2',T='#7b6753',O='#dc8f43';
   const blob=(x,y,rx,ry,c)=>'<ellipse cx="'+x+'" cy="'+y+'" rx="'+rx+'" ry="'+ry+'" fill="'+c+'"/>';
   const head=(x,y,sc,rot)=>'<g transform="translate('+x+' '+y+') scale('+sc+')'+(rot?' rotate('+rot+' 60 58)':'')+'">'+headInner('h'+n+s)+'</g>';
   let g='';
-  if(n==='sit')g=tail('M126 114Q162 116 158 90Q156 78 147 84',T)+body('M72 121Q64 72 100 60Q136 72 128 121Z','b'+n+s,blob(127,98,13,18,O)+blob(73,104,11,15,T))+paw(90,120)+paw(110,120)+head(67,4,.55);
-  else if(n==='sleep')g=tail('M158 108Q178 116 150 121Q112 125 84 121',T)+body('M48 122Q44 84 104 80Q164 82 164 106Q164 122 150 122Z','b'+n+s,blob(132,88,26,12,T)+blob(92,86,16,9,O))+head(34,62,.5,-6)+'<text class="zz" x="104" y="62">z</text><text class="zz" x="118" y="46" style="font-size:19px">z</text>';
-  else if(n==='play')g='<circle cx="36" cy="106" r="14" fill="#a8527a" stroke="'+K+'" stroke-width="2"/><path d="M26 100Q36 96 46 104M25 108Q36 104 48 112M49 112Q58 124 66 116" fill="none" stroke="#7d3a59" stroke-width="2" stroke-linecap="round"/>'
+  const sit=()=>tail('M126 114Q162 116 158 90Q156 78 147 84',T)+body('M70 122Q62 86 82 70Q100 60 118 70Q138 86 130 122Z','b'+n+s,blob(128,100,13,18,O)+blob(72,106,11,15,T))+paw(90,120)+paw(110,120)+head(64,6,.6);
+  const lying=()=>tail('M158 108Q178 116 150 121Q112 125 84 121',T)+body('M48 122Q44 84 104 80Q164 82 164 106Q164 122 150 122Z','b'+n+s,blob(132,88,26,12,T)+blob(92,86,16,9,O))+head(34,62,.5,-6);
+  const zz='<text class="zz" x="104" y="62">z</text><text class="zz" x="118" y="46" style="font-size:19px">z</text>';
+  if(n==='sit')g=sit();
+  else if(n==='feed')g='<ellipse cx="40" cy="113" rx="28" ry="6" fill="#5a3a1a" stroke="'+K+'" stroke-width="2"/><path d="M12 113Q14 127 28 127H52Q66 127 68 113" fill="#c9650a" stroke="'+K+'" stroke-width="2"/><text x="30" y="98" style="font:700 16px sans-serif;fill:#a89f94">?</text>'+sit();
+  else if(n==='sleep')g=lying()+zz;
+  else if(n==='loaf')g=lying();
+  else if(n==='laptop')g='<rect x="10" y="44" width="62" height="72" rx="6" fill="#59656c" stroke="'+K+'" stroke-width="2"/><rect x="17" y="51" width="48" height="56" rx="3" fill="#2b3a40"/><rect x="8" y="114" width="184" height="12" rx="5" fill="#9aa5ad" stroke="'+K+'" stroke-width="2"/>'+lying()+zz;
+  else if(n==='play'||n==='pen')g=(n==='play'?'<circle cx="36" cy="106" r="14" fill="#a8527a" stroke="'+K+'" stroke-width="2"/><path d="M26 100Q36 96 46 104M25 108Q36 104 48 112M49 112Q58 124 66 116" fill="none" stroke="#7d3a59" stroke-width="2" stroke-linecap="round"/>'
+      :'<g transform="rotate(-24 40 112)"><rect x="8" y="108" width="54" height="8" rx="3" fill="#4455ad" stroke="'+K+'" stroke-width="1.8"/><path d="M62 108L74 112L62 116Z" fill="#f2c14e" stroke="'+K+'" stroke-width="1.5"/></g><path d="M20 92l-6-6M30 88l-2-8M10 104l-8-2" stroke="#a89f94" stroke-width="2" stroke-linecap="round"/>')
     +tail('M164 104Q186 86 176 58',O,'wag')+body('M88 122Q82 86 122 80Q170 80 170 122Z','b'+n+s,blob(150,92,20,13,T)+blob(112,90,12,9,O))+paw(74,112,17,6)+paw(106,121)+head(74,30,.52,-10);
   else if(n==='bag')g='<path d="M58 70Q100 0 142 70" fill="none" stroke="#2b3558" stroke-width="8" stroke-linecap="round"/><rect x="40" y="62" width="120" height="62" rx="14" fill="#1f2743"/>'+head(64,12,.6)
     +'<path d="M40 82H160V110Q160 124 146 124H54Q40 124 40 110Z" fill="#2b3558" stroke="'+K+'" stroke-width="2"/><path d="M52 96H148" stroke="#5a67a0" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 6"/>'+paw(84,83,10,7)+paw(116,83,10,7);
+  else if(n==='box')g='<path d="M46 76L24 60H66L80 76Z" fill="#b5844a" stroke="'+K+'" stroke-width="2" stroke-linejoin="round"/><path d="M154 76L176 60H134L120 76Z" fill="#b5844a" stroke="'+K+'" stroke-width="2" stroke-linejoin="round"/><rect x="46" y="70" width="108" height="20" fill="#7a5530"/>'+head(64,14,.6)
+    +'<path d="M46 86H154V124H46Z" fill="#c8995c" stroke="'+K+'" stroke-width="2"/><path d="M92 86V124" stroke="#a87a44" stroke-width="6"/><text x="104" y="112" style="font:700 11px sans-serif;fill:#7a5530">FRAGILE</text>'+paw(84,87,10,6)+paw(116,87,10,6);
   else g=head(52,30,.8)+'<rect class="ledge" x="8" y="98" width="184" height="30" rx="10"/>'+paw(70,99,12,7)+paw(130,99,12,7);
   return '<svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+g+'</svg>';}
-const POSES=[['sit','','Agla is keeping you company'],['sleep','sleepy','Agla is fast asleep'],['play','happy','Agla found the yarn'],['bag','','Agla is in the bag again'],['watch','','Agla is watching you work']];
+const POSES=[['sit','','Agla is keeping you company'],['sleep','sleepy','Agla is fast asleep'],['play','happy','Agla found the yarn'],['bag','','Agla is in the bag again'],['watch','','Agla is watching you work'],
+  ['sit','judging','Agla is judging you'],['feed','','Agla is waiting to be fed. The bowl is empty, apparently'],['box','','If it fits, Agla sits'],
+  ['laptop','sleepy','Agla is asleep on your keyboard'],['pen','happy','Agla knocked your pen off the table'],['sit','sleepy','Agla is pretending she cannot hear you'],
+  ['loaf','','Agla has turned into a loaf'],['watch','judging','Agla saw that']];
 function scene(s){const p=POSES[ui.pose%POSES.length],dn=doneToday('a')+doneToday('b'),sk=streak();
   const b=el('div',{class:'scene pose '+p[1],role:'img','aria-label':p[2]});
   b.innerHTML='<span class="cap"><b></b><small></small></span>'+pose(p[0],s);
@@ -714,11 +729,11 @@ function vActivity(){
 
 function drawFocus(){const box=$('focusBody'),it=F.id&&S.items[F.id],run=F.end||F.free,o=other(ui.me);
   const close=el('button',{class:'btn ghost',text:run?'Hide, keep going':'Close',onclick:hide});
-  if(F.finished){box.replaceChildren(el('span',{class:'k',text:'Done'}),el('h2',{class:'ftask',text:'Nice. One thing less.'}),el('div',{class:'fpose pose happy'}),el('div',{class:'grow'}),
+  if(F.finished){box.replaceChildren(el('span',{class:'k',text:'Done'}),el('h2',{class:'ftask',text:'Nice. One thing less.'}),el('div',{class:'fpose pose happy'}),
       el('div',{class:'r'},el('button',{class:'btn',text:'Give me another',onclick:()=>{F.finished=false;F.id=pickFocus();drawFocus();}}),el('button',{class:'btn ghost',text:'Enough for now',onclick:hide})));
     box.querySelector('.fpose').innerHTML=pose('play','f');return;}
   if(!it||it.done){box.replaceChildren(el('span',{class:'k',text:'Just one thing'}),el('h2',{class:'ftask',text:ui.low?'No quick tasks left.':'Nothing open to pick from.'}),
-      el('p',{class:'fmeta',text:ui.low?'Low energy mode is on, so only quick tasks are offered.':'Add a to-do first, or enjoy the break.'}),el('div',{class:'fpose pose sleepy'}),el('div',{class:'grow'}),el('div',{class:'r'},close));
+      el('p',{class:'fmeta',text:ui.low?'Low energy mode is on, so only quick tasks are offered.':'Add a to-do first, or enjoy the break.'}),el('div',{class:'fpose pose sleepy'}),el('div',{class:'r'},close));
     box.querySelector('.fpose').innerHTML=pose('sleep','f');return;}
   const bits=[it.cat||null,it.due?(it.due<today()?'was due ':'due ')+dayLow(it.due):null,span(it)||null,it.est?'~'+it.est:null,pts(it)?'+'+pts(it)+' pts':null].filter(Boolean).join(' · ');
   const steps=(it.steps||[]).map((x,i)=>el('button',{class:'fstep'+(x.d?' on':''),'aria-pressed':String(!!x.d),onclick:()=>{const st=it.steps.map((y,j)=>j===i?{t:y.t,d:!y.d}:{t:y.t,d:!!y.d});if(!x.d)chime();patch('items',it.id,{steps:st}).then(drawFocus);}},
@@ -736,7 +751,7 @@ function drawFocus(){const box=$('focusBody'),it=F.id&&S.items[F.id],run=F.end||
     head.addEventListener('touchend',e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5)stepFocus(dx<0?1:-1);});}
   box.replaceChildren(...[el('span',{class:'k',text:both?'Working alongside '+name(o):'Just one thing'}),head,el('span',{class:'fmeta',text:bits+(many&&pos>=0?' · '+(pos+1)+' of '+ids.length:'')}),
     it.note?el('span',{class:'fmeta',text:it.note}):null,steps.length?el('div',{class:'fsteps'},steps):null,
-    el('div',{class:'fpose pose'}),...timer,el('div',{class:'grow'}),
+    el('div',{class:'fpose pose'}),...timer,
     el('div',{class:'r'},el('button',{class:'btn',style:'flex:1 1 100%',text:'Done',onclick:e=>{if(stepsLeft(it)){toast('Tick the steps above first.');return;}stopTimer();F.id=null;F.finished=true;toggle(it,e);drawFocus();}}),close)].filter(Boolean));
   box.querySelector('.fpose').innerHTML=pose(run?'watch':'sit','f');tick();}
 
