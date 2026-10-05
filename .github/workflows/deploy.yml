@@ -1,0 +1,70 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      owner_email:
+        description: "Owner's sign-in email (added to the allow list)"
+        required: false
+      partner_email:
+        description: "Partner's sign-in email (optional)"
+        required: false
+      seed:
+        description: "Base64 JSON export of the old lists (imported only into an empty database)"
+        required: false
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Firebase key
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::error::The FIREBASE_SERVICE_ACCOUNT secret is missing. Add it under Settings > Secrets and variables > Actions."; exit 1; fi
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+
+      - name: Install
+        run: |
+          npm ci --prefix scripts --no-audit --no-fund
+          npm ci --prefix functions --no-audit --no-fund
+
+      - name: Prepare Firebase project
+        id: boot
+        env:
+          VAPID_KEY: ${{ vars.VAPID_KEY }}
+        run: node scripts/bootstrap.mjs
+
+      - name: Allow list and import
+        if: github.event_name == 'workflow_dispatch'
+        # Reads the inputs from the event file so they never appear in the (public) log.
+        run: node scripts/seed.mjs
+
+      - name: Deploy
+        env:
+          PROJECT: ${{ steps.boot.outputs.project }}
+        run: |
+          deploy() { npx -y firebase-tools@15 deploy --only hosting,firestore:rules,functions --project "$PROJECT" --force --non-interactive; }
+          # The first deploy can fail while Google finishes setting up new services, so retry once.
+          deploy || { echo "Retrying in 90 seconds…"; sleep 90; deploy; }
+
+      - name: Done
+        run: echo "Kahekesi is live at ${{ steps.boot.outputs.url }}"
+
+      - name: Clean up key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

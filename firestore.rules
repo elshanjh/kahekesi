@@ -1,0 +1,27 @@
+rules_version = '2';
+// Only people listed in /allow (by sign-in email) can read or change anything.
+// The owner is added once by the deploy workflow; the owner adds the partner from Settings.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function email() { return request.auth.token.email.lower(); }
+    function allowed() { return signedIn() && exists(/databases/$(database)/documents/allow/$(email())); }
+    function isOwner() { return allowed() && get(/databases/$(database)/documents/allow/$(email())).data.role == 'owner'; }
+
+    match /allow/{e} {
+      allow read: if (signedIn() && e == email()) || allowed();
+      allow create, update: if isOwner() && request.resource.data.role == 'member';
+      allow delete: if isOwner() && resource.data.role != 'owner';
+    }
+    match /users/{uid} {
+      allow read: if allowed();
+      allow write: if allowed() && request.auth.uid == uid;
+      match /tokens/{t} {
+        allow read, write: if allowed() && request.auth.uid == uid;
+      }
+    }
+    match /{coll}/{id} {
+      allow read, write: if allowed() && coll in ['items', 'rewards', 'redemptions', 'status', 'config'];
+    }
+  }
+}
