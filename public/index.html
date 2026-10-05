@@ -727,7 +727,10 @@ function liftRow(r,pid,yStart){
     setTimeout(async()=>{list.classList.remove('sorting');r.classList.remove('drag','drop');rows.forEach(x=>{x.style.transform='';});document.body.classList.remove('dragging');
       if(to>i)list.insertBefore(r,rows[to].nextSibling);else if(to<i)list.insertBefore(r,rows[to]);
       r.classList.add('settle');setTimeout(()=>r.classList.remove('settle'),420);
-      const ids=[...list.children].map(c=>c.dataset.id);for(let k=0;k<ids.length;k++){const it=S.items[ids[k]];if(it&&it.ord!==k)await patch('items',ids[k],{ord:k});}
+      const ids=[...list.children].map(c=>c.dataset.id),order=globalOrder(),set=new Set(ids);
+      order.filter(id=>set.has(id)).length===ids.length||order.push(...ids.filter(id=>!order.includes(id)));
+      let k=0;const next=order.map(id=>set.has(id)?ids[k++]:id);
+      for(let j=0;j<next.length;j++){const it=S.items[next[j]];if(it&&it.ord!==j)await patch('items',next[j],{ord:j});}
       ui.dragging=false;render();},230);};
   addEventListener('pointermove',move);addEventListener('pointerup',up);addEventListener('pointercancel',up);}
 function row(it,showDay,drag){
@@ -756,6 +759,9 @@ function section(title,list,emptyMsg,showDay,extra,drag){
     list.length?el('div',{class:'list'+(drag?' sortable':'')},list.map(it=>row(it,showDay,drag))):el('p',{class:'empty',text:emptyMsg}));
 }
 const byNew=(x,y)=>(y.createdAt||0)-(x.createdAt||0);
+const byOrd=(x,y)=>(x.ord==null?-1:x.ord)-(y.ord==null?-1:y.ord);
+// The order To-dos and Schedule share: dragging in either one moves the item in both.
+const globalOrder=()=>sorted(vis().filter(it=>!it.done)).sort(byOrd).map(it=>it.id);
 const byTime=(x,y)=>(x.start||'99').localeCompare(y.start||'99')||(x.createdAt||0)-(y.createdAt||0);
 
 /* ---------- views ---------- */
@@ -850,14 +856,14 @@ function vDay(){
   const all=vis().filter(it=>it.date===ui.day),open=all.filter(i=>!i.done),done=all.filter(i=>i.done).sort((x,y)=>(y.doneAt||0)-(x.doneAt||0));
   const late=ui.day===t?vis().filter(it=>it.date&&it.date<ui.day&&!it.done).sort((x,y)=>x.date.localeCompare(y.date)):[];
   const dueL=vis().filter(it=>it.due===ui.day&&it.date!==ui.day&&!it.done);
-  const srt=l=>l.sort((x,y)=>byTime(x,y)||prio(y)-prio(x));
+  const srt=l=>sorted(l).sort((x,y)=>x.start&&y.start?x.start.localeCompare(y.start):x.start?-1:y.start?1:byOrd(x,y));
   const partOf=it=>it.start?(it.start<'12:00'?'morning':it.start<'17:00'?'afternoon':'evening'):(it.part||'');
   const qk=srt(open.filter(isQuick)),main=open.filter(i=>!isQuick(i)),LIMIT=6;
   out.push(el('button',{class:'btn',style:'width:100%;margin-bottom:18px',text:'Plan something for '+dayLow(ui.day),onclick:()=>openEdit(null,{date:ui.day})}));
   if(open.length>LIMIT&&ui.day>=t){const nx=addDays(ui.day,1),cand=open.slice().sort((x,y)=>prio(x)-prio(y)||(x.start?1:0)-(y.start?1:0)).slice(0,Math.min(5,open.length-LIMIT+2));
     out.push(el('div',{class:'note warn'},el('p',{},el('strong',{text:open.length+' things planned for '+dayLow(ui.day)+'.'}),' Days with more than '+LIMIT+' rarely get finished. Move a few so the rest feels doable:'),
       cand.map(it=>el('div',{class:'asked'},el('span',{class:'t',text:it.text}),el('button',{class:'btn small',text:'Move to '+dayLow(nx),onclick:()=>patch('items',it.id,{date:nx})})))));}
-  const sec=(title,hint,l)=>l.length?el('section',{class:'sec'},el('div',{class:'sec-h'},el('div',{class:'part'},el('h2',{text:title}),hint?el('small',{text:hint}):null),el('span',{text:String(l.length)})),el('div',{class:'list'},l.map(it=>row(it,false)))):null;
+  const sec=(title,hint,l)=>l.length?el('section',{class:'sec'},el('div',{class:'sec-h'},el('div',{class:'part'},el('h2',{text:title}),hint?el('small',{text:hint}):null),el('span',{text:String(l.length)})),el('div',{class:'list sortable'},l.map(it=>row(it,false,true)))):null;
   if(late.length)out.push(section('Earlier, still open',late,'',true));
   if(dueL.length)out.push(section('Deadline on this day',dueL,'',true));
   if(!open.length&&!done.length)out.push(el('p',{class:'empty',text:'Nothing planned for this day yet.'}));
