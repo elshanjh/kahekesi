@@ -551,7 +551,7 @@ function pose(n,s){const K='#3a302a',W='#fbf8f2',T='#7b6753',O='#dc8f43';
   const blob=(x,y,rx,ry,c)=>'<ellipse cx="'+x+'" cy="'+y+'" rx="'+rx+'" ry="'+ry+'" fill="'+c+'"/>';
   const head=(x,y,sc,rot)=>'<g transform="translate('+x+' '+y+') scale('+sc+')'+(rot?' rotate('+rot+' 60 58)':'')+'">'+headInner('h'+n+s)+'</g>';
   let g='';
-  const sit=()=>tail('M126 114Q162 116 158 90Q156 78 147 84',T)+body('M70 122Q62 86 82 70Q100 60 118 70Q138 86 130 122Z','b'+n+s,blob(128,100,13,18,O)+blob(72,106,11,15,T))+paw(90,120)+paw(110,120)+head(64,6,.6);
+  const sit=()=>tail('M126 114Q162 116 158 90Q156 78 147 84',T)+body('M70 122Q60 86 76 68Q100 52 124 68Q140 86 130 122Z','b'+n+s,blob(128,100,13,18,O)+blob(72,106,11,15,T))+paw(90,120)+paw(110,120)+head(64,12,.6);
   const lying=()=>tail('M158 108Q178 116 150 121Q112 125 84 121',T)+body('M48 122Q44 84 104 80Q164 82 164 106Q164 122 150 122Z','b'+n+s,blob(132,88,26,12,T)+blob(92,86,16,9,O))+head(34,62,.5,-6);
   const zz='<text class="zz" x="104" y="62">z</text><text class="zz" x="118" y="46" style="font-size:19px">z</text>';
   if(n==='sit')g=sit();
