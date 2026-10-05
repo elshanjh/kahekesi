@@ -58,7 +58,7 @@ jobs:
         env:
           PROJECT: ${{ steps.boot.outputs.project }}
         run: |
-          deploy() { npx -y firebase-tools@15 deploy --only hosting,firestore:rules,functions --project "$PROJECT" --force --non-interactive; }
+          deploy() { npx -y firebase-tools@15 deploy --only hosting,firestore,functions --project "$PROJECT" --force --non-interactive; }
           # The first deploy can fail while Google finishes setting up new services, so retry once.
           deploy || { echo "Retrying in 90 seconds…"; sleep 90; deploy; }
 

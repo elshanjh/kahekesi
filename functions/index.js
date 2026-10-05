@@ -142,14 +142,16 @@ exports.reminders = onSchedule({schedule: 'every 5 minutes', timeZone: 'Europe/T
   }
 
   // Break nudges: when a planned break runs out and the app did not already nudge.
-  const breaks = (await db.collection('breaks').where('end', '==', null).get()).docs;
+  // Shared breaks live in /breaks, private ones in /users/{uid}/breaks; a collection-group query covers both.
+  const breaks = (await db.collectionGroup('breaks').where('end', '==', null).get()).docs;
   for (const d of breaks) {
     const b = d.data(), due = b.start + (b.planned || 0) * 60e3;
     if (Date.now() - b.start > 4 * 3600e3) { await d.ref.update({end: due > b.start ? due : b.start + 4 * 3600e3, autoEnded: true, nudged: true}); continue; }
     if (!b.planned || b.nudged || Date.now() < due) continue;
     await d.ref.update({nudged: true});
     const [e, l] = bk(b);
-    await to([b.who], 'nudge', {title: 'Break is up ' + e, body: 'Your ' + b.planned + ' min ' + l.toLowerCase() + ' break is over. Ready to go back?', tag: 'nudge', url: '/'});
+    const owner = d.ref.parent.parent ? d.ref.parent.parent.id : null;
+    await push((u, id) => owner ? id === owner : u.me === b.who, 'nudge', {title: 'Break is up ' + e, body: 'Your ' + b.planned + ' min ' + l.toLowerCase() + ' break is over. Ready to go back?', tag: 'nudge', url: '/'});
   }
 
   const stRef = db.doc('notifier/state');

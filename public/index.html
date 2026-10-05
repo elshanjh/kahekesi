@@ -315,6 +315,9 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .blog{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .blog .rw:first-child{border-top:0}
 .bdate{flex:none;width:auto;min-height:36px;padding:5px 8px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-size:14px;color:var(--ink)}
+.privtog{align-self:flex-start;display:flex;flex-direction:column;align-items:flex-start;gap:1px;font-size:14px;font-weight:600;color:var(--muted);padding:2px 0}
+.privtog small{font-size:12px;font-weight:500;opacity:.8}
+.privtog[aria-pressed="true"]{color:var(--ink)}
 .blog .rw .who{font-size:12px;font-weight:700;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){.zz,.wag{animation:none}.side{transition:none}.bit{display:none}.agla{transition:none}.agla.up .bell{animation:none}.bar i,.check i{transition:none}}
 </style>
@@ -630,14 +633,21 @@ const theirBreak=()=>Object.values(S.breaks).find(b=>b.who===other(ui.me)&&!b.en
 const bmins=b=>Math.max(1,Math.round(((b.end||Date.now())-b.start)/6e4));
 const hm=t=>{const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes());};
 const fmtMins=n=>n<60?n+' min':Math.floor(n/60)+' h'+(n%60?' '+(n%60)+' min':'');
-const BUI={kind:'tea',label:'',mins:10,typing:false},nudged=new Set();
+const BUI={kind:'tea',label:'',mins:10,typing:false,priv:ls.get('bkPriv')==='1'},nudged=new Set();
+const bcoll=b=>b._coll||'breaks';
+const patchBreak=(b,d)=>patch(bcoll(b),b.id,d),delBreak=b=>del(bcoll(b),b.id);
+function putBreak(d){const priv=d.private&&db&&window.kkUid;put(priv?'users/'+window.kkUid+'/breaks':'breaks',uid(),d);}
+function subBreaks(){const parts={pub:{},priv:{}},merge=()=>{S.breaks=Object.assign({},parts.pub,parts.priv);render();};
+  db.collection('breaks').onSnapshot(snap=>{parts.pub={};for(const d of snap.docs)parts.pub[d.id]=Object.assign({id:d.id},d.data());merge();},()=>{});
+  if(window.kkUid){const c='users/'+window.kkUid+'/breaks';
+    db.collection(c).onSnapshot(snap=>{parts.priv={};for(const d of snap.docs)parts.priv[d.id]=Object.assign({id:d.id,_coll:c},d.data());merge();},()=>{});}}
 let bkBtn='';
 function breakTick(){const mb=myBreak(),b=$('breakBtn');let html,over=false;
   if(mb){const left=mb.start+(mb.planned||0)*6e4-Date.now();over=!!mb.planned&&left<0;
     html=bkInfo(mb).e+' '+(mb.planned?(left>=0?mmss(left):'+'+mmss(-left)):mmss(Date.now()-mb.start));
     if(mb.planned&&left<=0&&!mb.nudged&&!nudged.has(mb.id)){nudged.add(mb.id);chime();setTimeout(chime,350);
       cheer('Your '+mb.planned+' min '+bkInfo(mb).l.toLowerCase()+' break is up. Ready to go back?',true);
-      if(!document.hidden)patch('breaks',mb.id,{nudged:true});}
+      if(!document.hidden)patchBreak(mb,{nudged:true});}
     const bt=$('bTime');if(bt){bt.textContent=mb.planned?(left>=0?mmss(left):'+'+mmss(-left)):mmss(Date.now()-mb.start);bt.classList.toggle('over',over);}}
   else html='☕<span class="bl"> Break</span>';
   if(html!==bkBtn){b.innerHTML=html;bkBtn=html;}b.classList.toggle('over',over);}
@@ -645,20 +655,20 @@ function openBreak(){BUI.typing=false;show('breakSheet');drawBreak();}
 function pickedBreak(){if(BUI.kind==='other'){const l=BUI.label.trim();if(!l){toast('Give the break a name first.');return null;}return {kind:'other',label:l};}return {kind:BUI.kind};}
 function rememberCustom(l){if(l&&!customs().includes(l))saveCfg({breakCustom:[l,...customs()].slice(0,8)});}
 function startBreak(){const k=pickedBreak();if(!k)return;if(F.end||F.free)stopTimer();
-  const now=Date.now();put('breaks',uid(),Object.assign(k,{who:ui.me,start:now,end:null,planned:BUI.mins,nudged:false,createdAt:now}));
+  const now=Date.now();putBreak(Object.assign(k,{who:ui.me,start:now,end:null,planned:BUI.mins,nudged:false,private:BUI.priv,createdAt:now}));
   if(k.label)rememberCustom(k.label);chime();cheer('Enjoy it. I will tell you when '+BUI.mins+' min are up.',true);hide();}
 function logBreak(){const k=pickedBreak();if(!k)return;const now=Date.now();
-  put('breaks',uid(),Object.assign(k,{who:ui.me,start:now-BUI.mins*6e4,end:now,planned:BUI.mins,nudged:true,createdAt:now}));
+  putBreak(Object.assign(k,{who:ui.me,start:now-BUI.mins*6e4,end:now,planned:BUI.mins,nudged:true,private:BUI.priv,createdAt:now}));
   if(k.label)rememberCustom(k.label);toast('Logged: '+bkInfo(k).l+', '+BUI.mins+' min');hide();}
-function endBreak(b){patch('breaks',b.id,{end:Date.now(),nudged:true});chime();cheer('Welcome back. That was '+fmtMins(bmins(b))+'.');hide();}
+function endBreak(b){patchBreak(b,{end:Date.now(),nudged:true});chime();cheer('Welcome back. That was '+fmtMins(bmins(b))+'.');hide();}
 function drawBreak(){const box=$('breakBody'),mb=myBreak(),o=other(ui.me);
   if(mb){const k=bkInfo(mb),left=mb.start+(mb.planned||0)*6e4-Date.now();
-    const twoTapBtn=el('button',{class:'btn ghost small danger',text:'Cancel, do not log it',onclick:e=>twoTap(e.currentTarget,()=>{del('breaks',mb.id);hide();})});
+    const twoTapBtn=el('button',{class:'btn ghost small danger',text:'Cancel, do not log it',onclick:e=>twoTap(e.currentTarget,()=>{delBreak(mb);hide();})});
     box.replaceChildren(el('div',{class:'bnow'},el('span',{class:'k',style:'font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--both)',text:'On a break'}),
       el('h2',{class:'ftask',text:k.e+' '+k.l}),el('div',{class:'ftime'+(mb.planned&&left<0?' over':''),id:'bTime',text:mb.planned?(left>=0?mmss(left):'+'+mmss(-left)):mmss(Date.now()-mb.start)}),
-      el('span',{class:'fmeta',text:(mb.planned?mb.planned+' min break':'Break')+', started '+hm(mb.start)+'. '+name(o)+' can see it.'}),el('div',{class:'fpose pose sleepy'})),
+      el('span',{class:'fmeta',text:(mb.planned?mb.planned+' min break':'Break')+', started '+hm(mb.start)+'. '+(mb.private?'Only you can see it.':name(o)+' can see it.')}),el('div',{class:'fpose pose sleepy'})),
       el('div',{class:'acts'},el('button',{class:'btn',text:'Back to work',onclick:()=>endBreak(mb)}),
-        el('button',{class:'btn ghost',text:'+5 min',onclick:()=>{patch('breaks',mb.id,{planned:(mb.planned||0)+5,nudged:false});nudged.delete(mb.id);toast('Five more minutes.');setTimeout(drawBreak,50);}})),
+        el('button',{class:'btn ghost',text:'+5 min',onclick:()=>{patchBreak(mb,{planned:(mb.planned||0)+5,nudged:false});nudged.delete(mb.id);toast('Five more minutes.');setTimeout(drawBreak,50);}})),
       el('div',{class:'r'},twoTapBtn,el('button',{class:'btn ghost small',text:'Hide',onclick:hide})));
     box.querySelector('.fpose').innerHTML=pose('sleep','bk');return;}
   const chip=(id,e,l,on,fn)=>el('button',{type:'button',class:'bkind','aria-pressed':String(on),onclick:fn},el('b',{text:e}),l);
@@ -669,20 +679,38 @@ function drawBreak(){const box=$('breakBody'),mb=myBreak(),o=other(ui.me);
   const input=BUI.typing?el('input',{class:'field',id:'bkNew',maxlength:'24',placeholder:'What kind of break?','aria-label':'Break name',value:BUI.label,oninput:e=>{BUI.label=e.target.value;}}):null;
   const mins=el('div',{class:'seg'},BMINS.map(m=>el('button',{type:'button','aria-pressed':String(BUI.mins===m),text:String(m),onclick:()=>{BUI.mins=m;drawBreak();}})));
   const mine=Object.values(S.breaks).filter(b=>b.who===ui.me&&b.end&&ymd(new Date(b.start))===today());
-  box.replaceChildren(...[el('h2',{text:'Take a break'}),el('p',{class:'fmeta',style:'margin:0',text:'No points for breaks. It is just so you both see where the time goes.'}),
+  box.replaceChildren(...[el('h2',{text:'Take a break'}),el('p',{class:'fmeta',style:'margin:0',text:'No points for breaks. It is just for seeing where the time goes.'}),
     el('div',{class:'bkinds'},kinds),input,el('label',{class:'f'},'How long, in minutes',mins),
+    el('button',{type:'button',class:'privtog','aria-pressed':String(BUI.priv),onclick:()=>{BUI.priv=!BUI.priv;ls.set('bkPriv',BUI.priv?'1':'0');drawBreak();}},
+      BUI.priv?'🔒 Only you will see this break':'👀 '+name(o)+' can see this break',el('small',{text:BUI.priv?'tap to share':'tap to keep it private'})),
     el('div',{class:'acts'},el('button',{class:'btn',text:'Start break',onclick:startBreak}),el('button',{class:'btn ghost',text:'Cancel',onclick:hide})),
     el('button',{class:'btn ghost small',style:'align-self:flex-start',text:'Already had it? Log '+BUI.mins+' min',onclick:logBreak}),
     mine.length?el('p',{class:'fmeta',style:'margin:0',text:'Today so far: '+mine.length+(mine.length===1?' break':' breaks')+', '+fmtMins(mine.reduce((n,b)=>n+bmins(b),0))}):null].filter(Boolean));}
-function breaksSection(day){
-  const l=Object.values(S.breaks).filter(b=>ymd(new Date(b.start))===day).sort((x,y)=>x.start-y.start);
-  if(!l.length)return null;
-  const tot=p=>l.filter(b=>b.who===p).reduce((n,b)=>n+bmins(b),0);
-  return el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Breaks'}),el('span',{text:[['a',tot('a')],['b',tot('b')]].filter(x=>x[1]).map(x=>name(x[0])+' '+fmtMins(x[1])).join(' · ')})),
-    el('div',{class:'blog'},l.map(b=>{const k=bkInfo(b);return el('div',{class:'rw'},el('span',{},k.e+' '+k.l+' ',el('span',{class:'who',text:name(b.who)})),
-      el('span',{class:'c',text:hm(b.start)+' · '+(b.end?fmtMins(bmins(b)):'now')}),
-      b.who===ui.me?el('button',{class:'x','aria-label':'Remove break: '+k.l,text:'×',onclick:e=>twoTap(e.currentTarget,()=>del('breaks',b.id))}):null);})));}
 $('breakBtn').onclick=openBreak;
+
+/* ---------- activity: what each of you did on a day. Breaks live here, not on the Schedule.
+   On the partner's page their personal tasks stay hidden, only a count shows; private breaks never reach the partner. ---------- */
+function vActivity(){
+  const o=other(ui.me),who=ui.actWho===o?o:ui.me,mine=who===ui.me,d=ui.actDay||today(),on=t=>t&&ymd(new Date(t))===d;
+  const done=items().filter(it=>it.done&&it.doneBy===who&&on(it.doneAt));
+  const shown=mine?done:done.filter(it=>it.owner==='both'||it.askedBy===ui.me||it.kind==='shopping'),hiddenN=done.length-shown.length;
+  const brs=Object.values(S.breaks).filter(b=>b.who===who&&on(b.start));
+  const ev=[...shown.map(it=>({t:it.doneAt,e:it.kind==='shopping'?'🛒':'✓',l:(it.kind==='shopping'?'Bought ':'')+it.text,side:pts(it)?'+'+pts(it):''})),
+    ...brs.map(b=>{const k=bkInfo(b);return {t:b.start,e:k.e,l:k.l+(b.private?' 🔒':''),side:b.end?fmtMins(bmins(b)):'now',b};})].sort((x,y)=>y.t-x.t);
+  const tasks=done.filter(it=>it.kind!=='shopping'),bm=c=>brs.filter(b=>!c||bkInfo(b).c===c).reduce((n,b)=>n+bmins(b),0);
+  const seg=el('div',{class:'seg',style:'margin-bottom:12px'},[[ui.me,'You'],[o,name(o)]].map(([p,l])=>el('button',{'aria-pressed':String(who===p),text:l,onclick:()=>{ui.actWho=p;render();}})));
+  const nav=el('div',{class:'daynav',style:'margin-bottom:12px'},
+    el('button',{class:'btn ghost','aria-label':'Previous day',text:'‹',onclick:()=>{ui.actDay=addDays(d,-1);render();}}),el('h2',{text:fmtDay(d)}),
+    el('button',{class:'btn ghost','aria-label':'Next day',text:'›',disabled:d>=today(),onclick:()=>{ui.actDay=addDays(d,1);render();}}));
+  const strip=el('div',{class:'strip',style:'margin-bottom:14px'},el('span',{},el('b',{text:String(tasks.length)}),tasks.length===1?' task done':' tasks done'),
+    el('span',{},el('b',{text:String(tasks.reduce((n,it)=>n+pts(it),0))}),' pts'),
+    el('span',{},el('b',{text:String(brs.length)}),(brs.length===1?' break':' breaks')+(brs.length?', '+fmtMins(bm())+[['recharge',bm('recharge')],['screens',bm('screen')]].filter(x=>x[1]).map(x=>' · '+x[0]+' '+fmtMins(x[1])).join(''):'')));
+  const list=ev.length?el('div',{class:'blog'},ev.map(x=>el('div',{class:'rw'},el('span',{class:'c',style:'min-width:44px',text:hm(x.t)}),el('span',{},x.e+' '+x.l),el('span',{class:'c',text:x.side}),
+      x.b&&mine?el('button',{class:'x','aria-label':'Remove break','text':'×',onclick:e=>twoTap(e.currentTarget,()=>delBreak(x.b))}):null))):
+    el('p',{class:'empty',text:mine?'Nothing here yet for '+dayLow(d)+'. Ticked tasks and breaks show up here.':'Nothing '+name(o)+' shared for '+dayLow(d)+'.'});
+  return [seg,nav,strip,list,
+    hiddenN?el('p',{class:'fmeta',style:'margin:10px 2px 0',text:'+ '+hiddenN+(hiddenN===1?' personal task':' personal tasks')+' done'}):null,
+    mine?el('div',{class:'r',style:'margin-top:16px;display:flex;gap:8px'},el('button',{class:'btn',text:'Take a break',onclick:openBreak})):null];}
 
 function drawFocus(){const box=$('focusBody'),it=F.id&&S.items[F.id],run=F.end||F.free,o=other(ui.me);
   const close=el('button',{class:'btn ghost',text:run?'Hide, keep going':'Close',onclick:hide});
@@ -929,7 +957,6 @@ function vDay(){
   else out.push(sec('Morning','until 12:00',srt(main.filter(i=>partOf(i)==='morning'))),sec('Afternoon','12:00 to 17:00',srt(main.filter(i=>partOf(i)==='afternoon'))),
     sec('Evening','after 17:00',srt(main.filter(i=>partOf(i)==='evening'))),sec('Any time','',srt(main.filter(i=>!partOf(i)))));
   if(done.length)out.push(section('Done',done,'',false,done.length+' of '+all.length));
-  out.push(breaksSection(ui.day));
   return out;
 }
 function vRewards(){
@@ -973,7 +1000,7 @@ function twoTap(btn,fn){if(btn.dataset.sure){fn();return;}btn.dataset.sure='1';c
   setTimeout(()=>{if(btn.isConnected){delete btn.dataset.sure;btn.textContent=old;if(btn.classList.contains('x'))btn.classList.remove('danger');}},2500);}
 
 /* ---------- render ---------- */
-const VIEWS={inbox:['Inbox','Something on your mind? Drop it here'],day:['Schedule',''],todo:['To-dos','New to-do, then set the details…'],shopping:['Shopping','Add to the shopping list…'],idea:['Ideas','Park an idea…'],rewards:['Rewards','Something on your mind? Drop it here'],review:['Weekly review','Something on your mind? Drop it here']};
+const VIEWS={inbox:['Inbox','Something on your mind? Drop it here'],day:['Schedule',''],todo:['To-dos','New to-do, then set the details…'],shopping:['Shopping','Add to the shopping list…'],idea:['Ideas','Park an idea…'],rewards:['Rewards','Something on your mind? Drop it here'],review:['Weekly review','Something on your mind? Drop it here'],activity:['Activity','Something on your mind? Drop it here']};
 const told=new Set();
 function go(id){ui.tab=id;ls.set('tab',id);closeMenu();window.scrollTo(0,0);render();}
 function closeMenu(){$('side').classList.remove('open');$('scrim').hidden=true;}
@@ -998,7 +1025,7 @@ function render(){
   $('nav').replaceChildren(
     nb('day','Schedule',cnt.day,null,'main'),nb('inbox','Inbox',cnt.inbox,null,'main'),
     el('h3',{class:'main',text:'Lists'}),nb('todo','To-dos',cnt.todo,null,'main'),nb('shopping','Shopping',cnt.shopping,null,'main'),nb('idea','Ideas',n(i=>i.kind==='idea')),
-    nb('rewards','Rewards',balance(ui.me)+' pts'),nb('review','Weekly review',n(i=>(i.date&&i.date<today())||(i.due&&i.due<today()))),
+    nb('rewards','Rewards',balance(ui.me)+' pts'),nb('activity','Activity',null),nb('review','Weekly review',n(i=>(i.date&&i.date<today())||(i.due&&i.due<today()))),
     el('button',{class:'nav grp','aria-expanded':String(showCats),onclick:()=>{ui.catsOpen=!showCats;if(isCat&&showCats)ui.tab='todo';render();}},el('span',{text:'Categories'}),el('b',{text:showCats?'Hide':'Show '+cats().length})),
     ...(showCats?cats().map(c=>nb('cat:'+c,c,n(i=>i.cat===c),hue(c))):[]));
   const tb=(id,label,count)=>el('button',{'aria-current':ui.tab===id?'page':null,onclick:()=>go(id)},el('b',{text:String(count)}),label);
@@ -1013,7 +1040,7 @@ function render(){
   capChips();drawCats();
   const focus=document.activeElement&&document.activeElement.id;
   if(ui.tab==='rewards'&&$('rwTitle')&&!draft)draft={t:$('rwTitle').value,c:$('rwCost').value};
-  const t=ui.tab,built=t==='inbox'?vInbox():t==='todo'?vTodo():t==='shopping'?vShop():t==='idea'?vIdea():t==='day'?vDay():t==='review'?vReview():isCat?vCat(cur):vRewards();
+  const t=ui.tab,built=t==='inbox'?vInbox():t==='todo'?vTodo():t==='shopping'?vShop():t==='idea'?vIdea():t==='day'?vDay():t==='review'?vReview():t==='activity'?vActivity():isCat?vCat(cur):vRewards();
   draft=null;
   $('view').replaceChildren(...built.filter(Boolean));
   if((focus==='rwTitle'||focus==='rwCost')&&$(focus))$(focus).focus();
@@ -1100,7 +1127,7 @@ render();
   try{db=await new Promise(r=>{if(window.kkDb!==undefined)r(window.kkDb);else window.addEventListener('kk-db',e=>r(e.detail),{once:true});});}catch(e){db=null;}
   if(!db){$('offNote').hidden=false;return;}
   if(window.kkMe==='a'||window.kkMe==='b'){ui.me=window.kkMe;ui.meKnown=true;ls.set('me',ui.me);}
-  sub('items');sub('rewards');sub('redemptions');sub('status');sub('breaks');
+  sub('items');sub('rewards');sub('redemptions');sub('status');subBreaks();
   db.doc('config/main').onSnapshot(s=>{S.cfg=Object.assign({},DEF,s.exists?s.data():{});render();},()=>{});
 })();
 })();

@@ -140,6 +140,7 @@ async function enter(user) {
   try { const s = await getDoc(doc(fs, 'users', uid)); u = s.exists() ? s.data() : null; } catch (e) {}
   me = (u && (u.me === 'a' || u.me === 'b')) ? u.me : (a.me === 'b' ? 'b' : 'a');
   window.kkMe = me;
+  window.kkUid = uid;
   setDoc(doc(fs, 'users', uid), {email, me, updatedAt: Date.now()}, {merge: true}).catch(() => {});
   onSnapshot(doc(fs, 'config', 'main'), s => {
     const c = s.exists() ? s.data() : {};

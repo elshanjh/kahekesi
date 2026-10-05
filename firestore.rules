@@ -19,6 +19,10 @@ service cloud.firestore {
       match /tokens/{t} {
         allow read, write: if allowed() && request.auth.uid == uid;
       }
+      // Private breaks: only the person who took them.
+      match /breaks/{b} {
+        allow read, write: if allowed() && request.auth.uid == uid;
+      }
     }
     match /{coll}/{id} {
       allow read, write: if allowed() && coll in ['items', 'rewards', 'redemptions', 'status', 'config', 'breaks'];
