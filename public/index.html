@@ -363,6 +363,8 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
       <button type="button" class="btn ghost small" id="edTom">Tomorrow</button>
       <button type="button" class="btn ghost small" id="edNoDay">No day</button>
     </div>
+    <label class="f">Size. Quick ones go in the quick list<div class="seg" id="edPts">
+      <button type="button" data-v="5">Quick · 5</button><button type="button" data-v="10">Normal · 10</button><button type="button" data-v="20">Big · 20</button></div></label>
     <button type="button" class="btn ghost" id="edMoreBtn" aria-expanded="false" aria-controls="edMore">More details</button>
     <div id="edMore" class="edmore" hidden>
     <label class="f">Where it goes<div class="seg" id="edKind">
@@ -394,8 +396,6 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
       <div class="r"><input class="field" id="edStepNew" maxlength="80" placeholder="A small first step" aria-label="New step" style="flex:1"><button type="button" class="btn ghost small" id="edStepAdd">Add step</button></div></div>
     <label class="f">Takes about<select class="field" id="edEst"><option value="">Not sure</option><option>15 min</option><option>30 min</option><option>1 hour</option><option>2 hours</option><option>Half a day</option><option>A full day</option></select></label>
     <label class="f">Notes<textarea class="field" id="edNote" placeholder="Details, links, which book…"></textarea></label>
-    <label class="f">Size. Quick ones go in the quick list<div class="seg" id="edPts">
-      <button type="button" data-v="5">Quick · 5</button><button type="button" data-v="10">Normal · 10</button><button type="button" data-v="20">Big · 20</button></div></label>
     <button type="button" class="btn ghost small" id="edFocus" style="align-self:flex-start">Focus on this now</button>
     <a class="cal" id="edCal" target="_blank" rel="noopener" hidden>Add to Google Calendar ↗</a>
     </div>
@@ -1097,7 +1097,7 @@ $('edSave').onclick=()=>{const id=ui.editId,text=$('edText').value.trim();if(!te
   hide();};
 $('edKind').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.dataset.v==='shopping'&&!ui.editId)seg('edOwner','both');ptsVis();});
 // The add/edit window starts simple; everything else sits behind "More details".
-const moreSet=it=>[it.cat,it.start,it.part,it.due,it.repeat&&it.repeat!=='none',Number(it.imp),Number(it.urg),(it.steps||[]).length,it.est,it.note,it.points&&Number(it.points)!==10&&it.kind!=='shopping'].filter(Boolean).length;
+const moreSet=it=>[it.cat,it.start,it.part,it.due,it.repeat&&it.repeat!=='none',Number(it.imp),Number(it.urg),(it.steps||[]).length,it.est,it.note].filter(Boolean).length;
 let edMoreN=0;
 function edMore(open,n){if(n!=null)edMoreN=n;$('edMore').hidden=!open;const b=$('edMoreBtn');b.setAttribute('aria-expanded',String(open));
   b.textContent=open?'Fewer details':'More details'+(edMoreN?' · '+edMoreN+' set':'')+' ▾';}
