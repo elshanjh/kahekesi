@@ -111,6 +111,7 @@ body{--them:var(--b);--them-soft:var(--b-soft)} body[data-me="b"]{--them:var(--a
 @keyframes zz{50%{transform:translateY(-4px);opacity:.45}}
 @keyframes wag{to{transform:rotate(12deg)}}
 .chip[aria-pressed="true"]{background:var(--btn);color:var(--btn-fg);border-color:var(--btn)}
+.chip .ago{font-weight:500;color:var(--muted)}
 .chip i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;background:hsl(var(--h,200) 60% 50%)}
 .capcats{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
 .capcats .chip{padding:6px 11px;font-size:13px}
@@ -514,7 +515,8 @@ function addItem(text,cat){
   if(t==='todo'||t.slice(0,4)==='cat:'){openEdit(null,{text,kind:'todo',cat:cat||(t==='todo'?'':t.slice(4))});return;}
   const b=t==='shopping'?{kind:'shopping',owner:'both',points:5}:t==='todo'?{kind:'todo'}:t==='idea'?{kind:'idea'}:t.slice(0,4)==='cat:'?{kind:'todo',cat:t.slice(4)}:{kind:cat?'todo':'inbox'};
   if(cat)b.cat=cat;b.text=text;put('items',uid(),fresh(blank(b)));
-  toast(b.kind==='inbox'?'Saved to inbox':'Added to '+(b.cat||{todo:'to-dos',shopping:'shopping',idea:'ideas'}[b.kind]));}
+  const lb=b.kind==='shopping'&&lastBought(text);
+  toast(lb?'Added. Last bought '+boughtAgo(lb)+'.':b.kind==='inbox'?'Saved to inbox':'Added to '+(b.cat||{todo:'to-dos',shopping:'shopping',idea:'ideas'}[b.kind]));}
 function nextDate(it){const step=d=>{if(it.repeat==='daily')return addDays(d,1);if(it.repeat==='weekly')return addDays(d,7);const [y,m,dd]=d.split('-').map(Number);return ymd(new Date(y,m,dd));};
   let d=step(it.date||today());while(d<=today())d=step(d);return d;}
 const prio=it=>(Number(it.urg)||0)*2+(Number(it.imp)||0);
@@ -669,11 +671,15 @@ function vTodo(){
 function vShop(){
   const open=vis().filter(it=>it.kind==='shopping'&&!it.done).sort((x,y)=>(x.createdAt||0)-(y.createdAt||0));
   const have=new Set(open.map(it=>it.text.trim().toLowerCase())),seen=new Set(),again=[];
-  for(const it of vis().filter(it=>it.kind==='shopping'&&it.done).sort((x,y)=>(y.doneAt||0)-(x.doneAt||0))){const k=it.text.trim().toLowerCase();if(have.has(k)||seen.has(k))continue;seen.add(k);again.push(it.text.trim());if(again.length>=14)break;}
+  for(const it of vis().filter(it=>it.kind==='shopping'&&it.done).sort((x,y)=>(y.doneAt||0)-(x.doneAt||0))){const k=it.text.trim().toLowerCase();if(have.has(k)||seen.has(k))continue;seen.add(k);again.push({t:it.text.trim(),at:it.doneAt});if(again.length>=14)break;}
   return [el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Shopping'}),el('span',{text:open.length+' to buy'})),
-      open.length?el('div',{class:'list'},open.map(it=>el('div',{class:'shoprow'+(it.owner==='both'?' tog':'')},el('button',{class:'check','aria-label':'Got it: '+it.text,onclick:e=>toggle(it,e)},el('i')),el('button',{style:'flex:1;min-width:0;overflow-wrap:anywhere','aria-label':'Edit: '+it.text,onclick:()=>openEdit(it.id),text:it.text})))):
+      open.length?el('div',{class:'list'},open.map(it=>el('div',{class:'shoprow'+(it.owner==='both'?' tog':'')},el('button',{class:'check','aria-label':'Got it: '+it.text,onclick:e=>toggle(it,e)},el('i')),(lb=>el('button',{style:'flex:1;min-width:0;overflow-wrap:anywhere;text-align:left','aria-label':'Edit: '+it.text,onclick:()=>openEdit(it.id)},it.text,lb?el('small',{class:'ago',style:'display:block;font-size:13px;font-weight:500;color:var(--muted)',text:'last bought '+boughtAgo(lb)}):null))(lastBought(it.text))))):
       el('p',{class:'empty',text:'Nothing to buy. Type into the bar above the moment something runs out.'})),
-    again.length?el('section',{class:'sec'},el('h2',{text:'Buy again'}),el('div',{class:'chips'},again.map(t=>el('button',{class:'chip',text:'+ '+t,onclick:()=>put('items',uid(),fresh(blank({text:t,kind:'shopping',owner:'both',points:5})))})))):null];}
+    again.length?el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Buy again'}),el('span',{text:'last bought'})),el('div',{class:'chips'},again.map(a=>el('button',{class:'chip','aria-label':'Add '+a.t+' again, last bought '+boughtAgo(a.at),onclick:()=>{put('items',uid(),fresh(blank({text:a.t,kind:'shopping',owner:'both',points:5})));toast('Added '+a.t+'. Last bought '+boughtAgo(a.at)+'.');}},'+ '+a.t,el('small',{class:'ago',text:' · '+boughtAgo(a.at)}))))):null];}
+function boughtAgo(at){if(!at)return 'a while ago';const d=ymd(new Date(at)),t=today();if(d===t)return 'today';if(d===addDays(t,-1))return 'yesterday';
+  const n=Math.round((new Date(t+'T12:00')-new Date(d+'T12:00'))/864e5);if(n<14)return n+' days ago';if(n<60)return Math.round(n/7)+' weeks ago';
+  const [y,m,dd]=d.split('-').map(Number);return 'on '+new Date(y,m-1,dd).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:y===new Date().getFullYear()?undefined:'numeric'});}
+function lastBought(text){const k=text.trim().toLowerCase();let at=0;for(const it of items())if(it.kind==='shopping'&&it.done&&it.doneAt>at&&it.text.trim().toLowerCase()===k)at=it.doneAt;return at;}
 function vIdea(){return [section('Ideas to look into',sorted(vis().filter(it=>it.kind==='idea'&&!it.done)),'No ideas parked yet. Type one into the bar above.',true)];}
 function vCat(c){const done=doneNow(it=>it.cat===c);
   return [key(),section(c,sorted(vis().filter(it=>it.cat===c&&!it.done)),'Nothing open in '+c+'. Type into the bar above to add something here.',true),
