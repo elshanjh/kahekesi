@@ -68,8 +68,8 @@ exports.onItem = onDocumentWritten('items/{id}', async ev => {
     if (c.goalTitle && c.goalTarget > 0) {
       const all = await db.collection('items').where('done', '==', true).get();
       let tot = 0;
-      for (const d of all.docs) { const x = d.data(); if ((x.doneAt || 0) >= (c.goalSince || 0)) tot += Number(x.points) || 0; }
-      const before = tot - (Number(a.points) || 0);
+      for (const d of all.docs) { const x = d.data(); if ((x.doneAt || 0) >= (c.goalSince || 0) && x.kind !== 'shopping') tot += Number(x.points) || 0; }
+      const before = tot - (a.kind === 'shopping' ? 0 : Number(a.points) || 0);
       if (before < c.goalTarget && tot >= c.goalTarget) {
         await to(['a', 'b'], 'goal', {title: 'Goal reached: ' + c.goalTitle, body: 'Together you made ' + c.goalTarget + ' points. Go enjoy it!', tag: 'goal', url: '/?tab=rewards'});
       }

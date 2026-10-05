@@ -474,10 +474,12 @@ async function saveCfg(p){const next=Object.assign({},S.cfg,p);if(db){try{await 
 function sub(coll){db.collection(coll).onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=Object.assign({id:d.id},d.data());S[KEY[coll]]=m;render();},()=>{$('offNote').hidden=false;});}
 
 /* ---------- points ---------- */
-function earned(p){let n=0;for(const it of items())if(it.done&&it.doneBy===p)n+=it.points||0;return n;}
+// Shopping never earns points, including items ticked before this rule.
+const pts=it=>it.kind==='shopping'?0:(Number(it.points)||0);
+function earned(p){let n=0;for(const it of items())if(it.done&&it.doneBy===p)n+=pts(it);return n;}
 function spent(p){let n=0;for(const r of Object.values(S.reds))if(r.who===p)n+=r.cost||0;return n;}
 const balance=p=>earned(p)-spent(p);
-function goalPts(p){let n=0;for(const it of items())if(it.done&&it.doneBy===p&&(it.doneAt||0)>=(S.cfg.goalSince||0))n+=it.points||0;return n;}
+function goalPts(p){let n=0;for(const it of items())if(it.done&&it.doneBy===p&&(it.doneAt||0)>=(S.cfg.goalSince||0))n+=pts(it);return n;}
 function streak(){const days=new Set();for(const it of items())if(it.done&&it.doneAt)days.add(ymd(new Date(it.doneAt)));
   const wk=d=>{const [y,m,dd]=d.split('-').map(Number),x=new Date(y,m-1,dd);return addDays(d,-((x.getDay()+6)%7));},rest=new Set();
   let d=today(),n=0,gap=0;if(!days.has(d))d=addDays(d,-1);
@@ -553,11 +555,11 @@ const prio=it=>(Number(it.urg)||0)*2+(Number(it.imp)||0);
 function toggle(it,ev){
   if(it.done){const sp=it.spawn&&S.items[it.spawn];patch('items',it.id,{done:false,doneAt:null,doneBy:null,spawn:null});if(sp&&!sp.done)del('items',sp.id);return;}
   const r=ev.currentTarget.getBoundingClientRect();burst(r.left+r.width/2,r.top+r.height/2);chime();
-  const target=S.cfg.goalTarget||0,before=goalPts('a')+goalPts('b'),hit=S.cfg.goalTitle&&before<target&&before+(it.points||0)>=target;
+  const target=S.cfg.goalTarget||0,before=goalPts('a')+goalPts('b'),hit=S.cfg.goalTitle&&before<target&&before+pts(it)>=target;
   const up={done:true,doneAt:Date.now(),doneBy:ui.me};let again='';
   if(it.repeat&&it.repeat!=='none'){const nid=uid(),n=fresh(it);delete n.id;n.date=nextDate(it);n.example=false;n.steps=(it.steps||[]).map(x=>({t:x.t,d:false}));up.spawn=nid;put('items',nid,n);again=' Next: '+fmtDay(n.date)+'.';}
   patch('items',it.id,up);
-  if(hit)cheer('Goal reached: '+S.cfg.goalTitle+'!',true);else cheer('+'+(it.points||0)+' for '+name(ui.me)+'.'+again);}
+  if(hit)cheer('Goal reached: '+S.cfg.goalTitle+'!',true);else if(it.kind==='shopping')cheer('Got it. One less to buy.');else cheer('+'+pts(it)+' for '+name(ui.me)+'.'+again);}
 
 /* ---------- focus: one thing, a timer, and doing it together ---------- */
 const F={id:null,end:0,mins:0,free:false,ended:false,finished:false},skip=new Set();
@@ -664,7 +666,7 @@ function drawFocus(){const box=$('focusBody'),it=F.id&&S.items[F.id],run=F.end||
   if(!it||it.done){box.replaceChildren(el('span',{class:'k',text:'Just one thing'}),el('h2',{class:'ftask',text:ui.low?'No quick tasks left.':'Nothing open to pick from.'}),
       el('p',{class:'fmeta',text:ui.low?'Low energy mode is on, so only quick tasks are offered.':'Add a to-do first, or enjoy the break.'}),el('div',{class:'fpose pose sleepy'}),el('div',{class:'grow'}),el('div',{class:'r'},close));
     box.querySelector('.fpose').innerHTML=pose('sleep','f');return;}
-  const bits=[it.cat||null,it.due?(it.due<today()?'was due ':'due ')+dayLow(it.due):null,span(it)||null,it.est?'~'+it.est:null,'+'+(it.points||0)+' pts'].filter(Boolean).join(' · ');
+  const bits=[it.cat||null,it.due?(it.due<today()?'was due ':'due ')+dayLow(it.due):null,span(it)||null,it.est?'~'+it.est:null,pts(it)?'+'+pts(it)+' pts':null].filter(Boolean).join(' · ');
   const steps=(it.steps||[]).map((x,i)=>el('button',{class:'fstep'+(x.d?' on':''),'aria-pressed':String(!!x.d),onclick:()=>{const st=it.steps.map((y,j)=>j===i?{t:y.t,d:!y.d}:{t:y.t,d:!!y.d});if(!x.d)chime();patch('items',it.id,{steps:st}).then(drawFocus);}},
     el('span',{class:'check'+(x.d?' on':''),style:'width:44px;height:44px'},el('i')),el('span',{text:x.t})));
   const st=S.status[o],now=Date.now(),both=st&&st.text&&(st.until?st.until>now:now-st.at<2*36e5);
@@ -747,7 +749,7 @@ function row(it,showDay,drag){
     span(it)?el('span',{class:'time',text:span(it)}):null,
     it.repeat&&it.repeat!=='none'?el('span',{text:'↻ '+it.repeat}):null,
     it.note?el('span',{text:'has notes'}):null,
-    el('span',{text:(it.done?'earned ':'+')+(it.points||0)+(it.done&&it.doneBy?' · '+name(it.doneBy):'')}),
+    it.kind==='shopping'?(it.done&&it.doneBy?el('span',{text:'bought · '+name(it.doneBy)}):null):el('span',{text:(it.done?'earned ':'+')+pts(it)+(it.done&&it.doneBy?' · '+name(it.doneBy):'')}),
     it.example?el('span',{class:'pill ex',text:'example'}):null);
   return el('div',{'data-id':it.id,class:'row'+(it.done?' done':'')+(it.owner==='both'?' tog':'')+(it.urg>0&&!it.done?' hot':'')},
     el('button',{class:'check'+(it.done?' on':''),'aria-pressed':String(!!it.done),'aria-label':(it.done?'Mark not done: ':'Mark done: ')+it.text,onclick:e=>toggle(it,e)},el('i')),
@@ -792,7 +794,7 @@ function vInbox(){
       el('p',{class:'empty',text:'Nothing asked yet. '+name(o)+' gets your request in the inbox and can accept it to the to-do list or the schedule. You will see the answer here.'}))];}
 function vReview(){
   const now=new Date(),mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-((now.getDay()+6)%7)).getTime();
-  const wk=p=>{const d=items().filter(it=>it.done&&it.doneBy===p&&(it.doneAt||0)>=mon);return d.length+' done, '+d.reduce((n,it)=>n+(it.points||0),0)+' pts';};
+  const wk=p=>{const d=items().filter(it=>it.done&&it.doneBy===p&&(it.doneAt||0)>=mon);return d.length+' done, '+d.reduce((n,it)=>n+pts(it),0)+' pts';};
   const late=vis().filter(it=>it.date&&it.date<today()&&!it.done).sort((x,y)=>x.date.localeCompare(y.date));
   const stale=vis().filter(it=>!it.done&&!it.date&&(it.kind==='todo')&&(it.createdAt||0)<Date.now()-14*864e5).sort((x,y)=>(x.createdAt||0)-(y.createdAt||0));
   const inbox=vis().filter(it=>it.kind==='inbox'&&!it.done).sort(byNew);
@@ -978,7 +980,7 @@ function openEdit(id,preset){const it=id?S.items[id]:blank(preset);if(!it)return
   $('edText').value=it.text;seg('edKind',it.kind);for(const b of [...$('edOwner').children].slice(0,2))b.textContent=b.dataset.v===ui.me?'Just me':'For '+name(b.dataset.v);seg('edOwner',it.owner);
   {const cs=cats().concat(it.cat&&!cats().includes(it.cat)?[it.cat]:[]);$('edCat').replaceChildren(el('option',{value:'',text:'None'}),...cs.map(c=>el('option',{text:c})));}$('edCat').value=it.cat||'';$('edCatNew').value='';$('edDate').value=it.date||'';$('edStart').value=it.start||'';$('edEnd').value=it.end||'';seg('edPts',it.points||10);
   seg('edRep',it.repeat||'none');seg('edImp',Number(it.imp)||0);seg('edUrg',Number(it.urg)||0);$('edDue').value=it.due||'';$('edEst').value=it.est||'';seg('edPart',it.part||'');edSt=(it.steps||[]).map(x=>({t:x.t,d:!!x.d}));drawSteps();$('edStepNew').value='';$('edFocus').hidden=!id||it.done;$('edNote').value=it.note||'';
-  const d=$('edDel');delete d.dataset.sure;d.textContent='Delete';calLink();show('edSheet');if(!id&&!it.text)$('edText').focus();}
+  const d=$('edDel');delete d.dataset.sure;d.textContent='Delete';calLink();ptsVis();show('edSheet');if(!id&&!it.text)$('edText').focus();}
 let edSt=[];
 function drawSteps(){$('edSteps').replaceChildren(...edSt.map((x,i)=>el('div',{class:'step'},el('span',{text:(x.d?'✓ ':'')+x.t}),el('button',{type:'button',class:'x','aria-label':'Remove step: '+x.t,text:'×',onclick:()=>{edSt.splice(i,1);drawSteps();}}))));}
 function addStep(){const t=$('edStepNew').value.trim();if(!t)return;edSt.push({t,d:false});$('edStepNew').value='';drawSteps();$('edStepNew').focus();}
@@ -1007,7 +1009,8 @@ $('edSave').onclick=()=>{const id=ui.editId,text=$('edText').value.trim();if(!te
   if(ask.ask==='pending')toast('Sent to '+name(oth)+'. You will see the answer in your inbox.');
   else if(ui.accepting&&prev)toast('Planned. '+name(prev.askedBy)+' will see you accepted.');
   hide();};
-$('edKind').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.dataset.v==='shopping'&&!ui.editId)seg('edOwner','both');});
+$('edKind').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.dataset.v==='shopping'&&!ui.editId)seg('edOwner','both');ptsVis();});
+function ptsVis(){$('edPts').closest('label').hidden=seg('edKind')==='shopping';}
 $('edDel').onclick=e=>twoTap(e.currentTarget,()=>{const id=ui.editId;hide();if(id)del('items',id);});
 
 function openGoal(){$('goalTitle').value=S.cfg.goalTitle||'';$('goalTarget').value=S.cfg.goalTarget||300;const r=$('goalReset');delete r.dataset.sure;r.textContent='Start from zero';r.classList.remove('danger');show('goalSheet');}
