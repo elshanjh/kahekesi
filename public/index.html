@@ -877,8 +877,12 @@ function vReview(){
     (l=>l.length?section('Past their deadline',l,'',true,l.length+' late'):null)(vis().filter(it=>it.due&&it.due<today()&&!it.done)),
     section('Waiting two weeks or more',stale,'No old to-dos without a day.',false,stale.length?stale.length+' to decide':''),
     section('Still in the inbox',inbox,'The inbox is empty.',true,inbox.length?inbox.length+' to sort':'')];}
+// One All / Just mine / Together filter, shared by To-dos and Schedule.
+const ownerFilter=it=>ui.filter==='all'||(ui.filter==='me'?it.owner===ui.me:it.owner==='both');
+const filterSeg=()=>el('div',{class:'seg',style:'margin-bottom:12px'},[['all','All'],['me','Just mine'],['both','Together']].map(([v,l])=>
+  el('button',{'aria-pressed':String(ui.filter===v),text:l,onclick:()=>{ui.filter=v;render();}})));
 function vTodo(){
-  const f=it=>ui.filter==='all'||(ui.filter==='me'?it.owner===ui.me:it.owner==='both');
+  const f=ownerFilter;
   const seg=el('div',{class:'seg',style:'margin-bottom:12px'},[['all','All'],['me','Just mine'],['both','Together']].map(([v,l])=>
     el('button',{'aria-pressed':String(ui.filter===v),text:l,onclick:()=>{ui.filter=v;render();}})));
   const done=doneNow(it=>it.kind==='todo');
@@ -924,10 +928,10 @@ function vDay(){
   const quick=el('div',{class:'tools'},el('button',{class:'chip','aria-pressed':String(ui.day===t),text:'Today',onclick:jump(t)}),el('button',{class:'chip','aria-pressed':String(ui.day===tm),text:'Tomorrow',onclick:jump(tm)}),
     el('button',{class:'chip','aria-pressed':String(ui.calOpen),text:ui.calOpen?'Hide calendar':'Pick from calendar',onclick:()=>{ui.calOpen=!ui.calOpen;ui.month=ui.day.slice(0,7);render();}}),
     el('button',{class:'chip','aria-pressed':String(ui.low),text:'Low energy',onclick:()=>{ui.low=!ui.low;ls.set('low',ui.low?'1':'0');render();}}));
-  const out=[nav,quick];
+  const out=[nav,filterSeg(),quick];
   if(ui.calOpen){
     const [y,m]=ui.month.split('-').map(Number),off=(new Date(y,m-1,1).getDay()+6)%7,len=new Date(y,m,0).getDate(),cells=Math.ceil((off+len)/7)*7,start=addDays(ui.month+'-01',-off);
-    const marks={};for(const it of vis())if(!it.done)for(const d of [it.date,it.due])if(d){const k=marks[d]||(marks[d]={});if(it.owner==='both')k.t=1;else k.m=1;}
+    const marks={};for(const it of vis())if(!it.done&&ownerFilter(it))for(const d of [it.date,it.due])if(d){const k=marks[d]||(marks[d]={});if(it.owner==='both')k.t=1;else k.m=1;}
     const go=n=>{ui.month=ymd(new Date(y,m-1+n,1)).slice(0,7);render();};
     out.push(el('div',{class:'mhead'},el('button',{class:'btn ghost','aria-label':'Previous month',text:'‹',onclick:()=>go(-1)}),
       el('h2',{style:'font-size:17px;text-align:center',text:new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})}),
@@ -938,9 +942,9 @@ function vDay(){
         onclick:()=>{ui.day=d;ui.month=d.slice(0,7);ui.calOpen=false;render();}},String(Number(d.slice(8))),el('span',{class:'dots'},k.m?el('i'):null,k.t?el('i',{class:'t'}):null)));}
     out.push(grid);
   }
-  const all=vis().filter(it=>it.date===ui.day),open=all.filter(i=>!i.done),done=all.filter(i=>i.done).sort((x,y)=>(y.doneAt||0)-(x.doneAt||0));
-  const late=ui.day===t?vis().filter(it=>it.date&&it.date<ui.day&&!it.done).sort((x,y)=>x.date.localeCompare(y.date)):[];
-  const dueL=vis().filter(it=>it.due===ui.day&&it.date!==ui.day&&!it.done);
+  const all=vis().filter(it=>it.date===ui.day&&ownerFilter(it)),open=all.filter(i=>!i.done),done=all.filter(i=>i.done).sort((x,y)=>(y.doneAt||0)-(x.doneAt||0));
+  const late=ui.day===t?vis().filter(it=>it.date&&it.date<ui.day&&!it.done&&ownerFilter(it)).sort((x,y)=>x.date.localeCompare(y.date)):[];
+  const dueL=vis().filter(it=>it.due===ui.day&&it.date!==ui.day&&!it.done&&ownerFilter(it));
   const srt=l=>sorted(l).sort((x,y)=>x.start&&y.start?x.start.localeCompare(y.start):x.start?-1:y.start?1:byOrd(x,y));
   const partOf=it=>it.start?(it.start<'12:00'?'morning':it.start<'17:00'?'afternoon':'evening'):(it.part||'');
   const qk=srt(open.filter(isQuick)),main=open.filter(i=>!isQuick(i)),LIMIT=6;
@@ -951,7 +955,7 @@ function vDay(){
   const sec=(title,hint,l)=>l.length?el('section',{class:'sec'},el('div',{class:'sec-h'},el('div',{class:'part'},el('h2',{text:title}),hint?el('small',{text:hint}):null),el('span',{text:String(l.length)})),el('div',{class:'list sortable'},l.map(it=>row(it,false,true)))):null;
   if(late.length)out.push(section('Earlier, still open',late,'',true));
   if(dueL.length)out.push(section('Deadline on this day',dueL,'',true));
-  if(!open.length&&!done.length)out.push(el('p',{class:'empty',text:'Nothing planned for this day yet.'}));
+  if(!open.length&&!done.length)out.push(el('p',{class:'empty',text:ui.filter==='all'?'Nothing planned for this day yet.':ui.filter==='me'?'Nothing of just yours planned for this day.':'Nothing together planned for this day.'}));
   out.push(sec('Quick tasks','a few minutes each',qk));
   if(ui.low){if(main.length)out.push(el('p',{class:'empty',text:main.length+' bigger '+(main.length===1?'task is':'tasks are')+' hidden while low energy is on.'}));}
   else out.push(sec('Morning','until 12:00',srt(main.filter(i=>partOf(i)==='morning'))),sec('Afternoon','12:00 to 17:00',srt(main.filter(i=>partOf(i)==='afternoon'))),
