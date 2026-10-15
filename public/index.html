@@ -344,8 +344,10 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .cytrack i{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:var(--both);transform:translate(-50%,-50%);box-shadow:0 0 0 3px var(--surface)}
 .dayc.cyp{background:#d9546a;color:#fff}.dayc.cypr{background:transparent;box-shadow:inset 0 0 0 2px #d9546a}
 .key i.cyk{background:#d9546a;border-color:#d9546a}.key i.cyk.pr{background:transparent;border-color:#d9546a}
+.dayc.cymk{position:relative}.dayc.cymk::after{content:attr(data-mk);position:absolute;top:1px;right:3px;font-size:10px;line-height:1}
+.cyphase{font-weight:700;font-size:15px}
 .chip.cytag{padding:4px 10px;font-size:12.5px}
-.cyban{flex-direction:column;align-items:stretch}.cyban .wrow{display:flex;align-items:center;gap:8px;font-size:14px}.cyban .wrow span:first-child{flex:1;min-width:0}
+.cyban{flex-direction:column;align-items:stretch;flex-wrap:nowrap}.cyban>p{flex:none}.cyban .wrow{display:flex;align-items:center;gap:8px;font-size:14px}.cyban .wrow span:first-child{flex:1;min-width:0}
 .cyban>.btn{align-self:flex-start}
 .privtog{align-self:flex-start;display:flex;flex-direction:column;align-items:flex-start;gap:1px;font-size:14px;font-weight:600;color:var(--muted);padding:2px 0}
 .privtog small{font-size:12px;font-weight:500;opacity:.8}
@@ -822,6 +824,7 @@ function ownCycle(){const c=ccfg(),st=cycleStats(S.periods),o=other(ui.me),out=[
     cput('periods',uid(),{start:d,end:null,tags:[],createdAt:Date.now()});cheer('Noted. Be gentle with yourself today.',true);};
   const endOn=d=>{if(st.last){const e=d<st.last.start?st.last.start:d;cput('periods',st.last.id,Object.assign(noId(st.last),{end:e}));toast('Period ended '+fmtDay(e).toLowerCase()+'.');}};
   out.push(el('div',{class:'sec'},el('section',{class:'goal'},el('span',{class:'k',text:'Your cycle'}),el('h2',{text:cycleLine(st)||'Log your last period to start'}),
+    (ph=>ph&&PHASE[ph]&&ph!=='period'?el('span',{class:'cyphase',text:PHASE[ph][0]+' Today: '+PHASE[ph][1]}):null)(cyPhase(t,st)),
     el('span',{class:'fmeta',style:'text-align:left',text:st.known?'Average cycle '+st.avg+' days · period about '+st.plen+' days':'Predictions get better after two periods.'}),
     el('div',{class:'r',style:'display:flex;gap:8px;flex-wrap:wrap'},st.inP?[el('button',{class:'btn small',text:'Period ended today',onclick:()=>endOn(t)}),pick('Ended another day',endOn)]:
       [el('button',{class:'btn small',text:'Period started today',onclick:()=>startOn(t)}),pick('Started another day',startOn)]))));
@@ -855,17 +858,29 @@ function ownCycle(){const c=ccfg(),st=cycleStats(S.periods),o=other(ui.me),out=[
     el('p',{class:'fmeta',style:'margin:6px 0 0;text-align:left',text:'Tag a month as stressful, travel, sick or new meds and it will not skew your average. Predictions are estimates from your own history, not a medical or contraception tool.'}),
     el('button',{class:'btn ghost small danger',style:'align-self:flex-start',text:'Stop tracking',onclick:e=>twoTap(e.currentTarget,()=>saveCcfg({on:false}))})));
   return out;}
+// Estimated phase for a day: ovulation about 14 days before the next start, fertile window the 5 days before it and the day after,
+// PMS the 5 days before the next period. Estimates from her own history, not for contraception.
+function cyPhase(d,st){const l=st.list;if(!l.length||d<l[0].start)return null;let cs=null,ns=null;
+  for(let i=0;i<l.length;i++)if(l[i].start<=d){cs=l[i].start;ns=l[i+1]?l[i+1].start:null;}
+  if(!ns){const k=Math.floor(dDiff(cs,d)/st.avg);cs=addDays(cs,k*st.avg);ns=addDays(cs,st.avg);}
+  const ov=addDays(ns,-14),pe=st.plen;
+  const real=st.list.some(p=>d>=p.start&&d<=(p.end||(p===st.last&&st.inP?today():addDays(p.start,pe-1))));
+  if(real)return 'period';if(d>today()&&d<addDays(cs,pe)&&d>=cs)return 'predicted';
+  if(d===ov)return 'ovulation';if(d>=addDays(ov,-5)&&d<=addDays(ov,1))return 'fertile';
+  if(d>=addDays(ns,-5)&&d<ns)return 'pms';if(d<addDays(cs,pe))return 'after';return d<ov?'follicular':'luteal';}
+const PHASE={period:['🩸','Period'],predicted:['🩸','Period likely'],fertile:['🌱','Fertile window'],ovulation:['🌼','Ovulation (estimate)'],pms:['🌙','PMS days'],follicular:['✨','Follicular phase'],luteal:['🍂','Luteal phase'],after:['✨','Follicular phase']};
 function cyCalendar(st){const t=today();ui.cyMonth=ui.cyMonth||t.slice(0,7);const [y,m]=ui.cyMonth.split('-').map(Number),off=(new Date(y,m-1,1).getDay()+6)%7,len=new Date(y,m,0).getDate(),cells=Math.ceil((off+len)/7)*7,start=addDays(ui.cyMonth+'-01',-off);
-  const inReal=d=>st.list.some(p=>d>=p.start&&d<=(p.end||(p===st.last&&st.inP?t:addDays(p.start,st.plen-1))));
-  const pred=d=>{if(!st.next||d<t)return false;for(let k=0;k<4;k++){const f=addDays(st.next.from,k*st.avg),e=addDays(st.next.from,k*st.avg+st.plen-1);if(d>=f&&d<=e)return true;}return false;};
+  const inReal=d=>cyPhase(d,st)==='period';
+  const pred=d=>cyPhase(d,st)==='predicted';
   const go=n=>{ui.cyMonth=ymd(new Date(y,m-1+n,1)).slice(0,7);render();};
   const grid=el('div',{class:'month'},['Mo','Tu','We','Th','Fr','Sa','Su'].map(w=>el('span',{class:'wd',text:w})));
-  for(let i=0;i<cells;i++){const d=addDays(start,i),r=inReal(d),pr=!r&&pred(d),lg=!!S.cdays[d];
-    grid.append(el('button',{class:'dayc'+(d.slice(0,7)!==ui.cyMonth?' out':'')+(d===t?' today':'')+(r?' cyp':pr?' cypr':''),'aria-label':fmtDay(d)+(r?', period':pr?', predicted':''),disabled:d>t,
+  for(let i=0;i<cells;i++){const d=addDays(start,i),ph=cyPhase(d,st),r=ph==='period',pr=ph==='predicted',lg=!!S.cdays[d],mk=ph==='ovulation'?'🌼':ph==='fertile'?'🌱':ph==='pms'?'🌙':'';
+    grid.append(el('button',{class:'dayc'+(d.slice(0,7)!==ui.cyMonth?' out':'')+(d===t?' today':'')+(r?' cyp':pr?' cypr':'')+(mk?' cymk':''),'data-mk':mk||null,'aria-label':fmtDay(d)+(ph&&PHASE[ph]?', '+PHASE[ph][1]:''),disabled:d>t,
       onclick:()=>{cyDay=d===t?null:d;cyDraft=null;render();window.scrollTo(0,0);}},String(Number(d.slice(8))),el('span',{class:'dots'},lg?el('i'):null)));}
   return el('section',{class:'sec'},el('div',{class:'mhead'},el('button',{class:'btn ghost','aria-label':'Previous month',text:'‹',onclick:()=>go(-1)}),
     el('h2',{style:'font-size:17px;text-align:center',text:new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})}),el('button',{class:'btn ghost','aria-label':'Next month',text:'›',onclick:()=>go(1)})),
-    grid,el('div',{class:'key'},el('span',{},el('i',{class:'cyk'}),'Period'),el('span',{},el('i',{class:'cyk pr'}),'Likely'),el('span',{text:'• checked in · tap a day to log it'})));}
+    grid,el('div',{class:'key'},el('span',{},el('i',{class:'cyk'}),'Period'),el('span',{},el('i',{class:'cyk pr'}),'Likely'),el('span',{text:'🌱 Fertile'}),el('span',{text:'🌼 Ovulation'}),el('span',{text:'🌙 PMS'}),el('span',{text:'• checked in'})),
+    el('p',{class:'fmeta',style:'margin:0;text-align:left',text:'Fertile days and ovulation are estimates from your average cycle. Do not use them for contraception. Tap a past day to log it.'}));}
 
 /* ---------- "Today I'd like…": small requests to each other, for today only ---------- */
 const WDONT=['🎵 No singing','🙅 No touching','🤐 No teasing or jokes','🙊 Not too many questions','🔇 Keep it quiet'];
