@@ -322,6 +322,8 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .rw.trip{width:100%;text-align:left;border-top:1px solid var(--line)}.blog .rw.trip:first-child{border-top:0}
 .tlist{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
 .trow{display:flex;align-items:center;gap:6px}.trow .sitem{flex:1;min-width:0}
+.trow .sitem.tbox{flex:none;width:auto;padding:7px 4px 7px 8px}
+.tname{flex:1;min-width:0;min-height:38px;padding:6px 10px}.tname.off{color:var(--muted);padding:6px 4px;overflow-wrap:anywhere}
 .trow .sitem.on span{text-decoration:none;color:var(--ink)}.trow .sitem:not(.on) span{color:var(--muted)}
 .trow.tadd{padding:6px 4px 4px;border-top:1px solid var(--line);margin-top:2px}.trow.tadd .field{min-height:40px;padding:8px 10px}
 .sres{display:flex;flex-direction:column;gap:8px}.sres:empty{display:none}
@@ -972,7 +974,7 @@ function recentBought(){const all=vis().filter(it=>it.kind==='shopping'&&it.done
   if(!all.length)return null;
   return el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Recently bought'}),el('span',{text:'tap the date to change it'})),
     el('div',{class:'blog'},more(all,4,'boughtAll').map(it=>el('div',{class:'rw'},
-      el('span',{},it.text,el('small',{style:'display:block;font-size:12.5px;color:var(--muted)',text:(it.doneBy?name(it.doneBy):'')+(it.price?' · '+eur(it.price):'')})),
+      el('button',{style:'flex:1;min-width:0;text-align:left;overflow-wrap:anywhere','aria-label':'Edit '+it.text,onclick:()=>openEdit(it.id)},it.text,el('small',{style:'display:block;font-size:12.5px;color:var(--muted)',text:(it.doneBy?name(it.doneBy):'')+(it.price?' · '+eur(it.price):'')})),
       el('label',{class:'dchip'},boughtAgo(it.doneAt),el('input',{type:'date','aria-label':'Date '+it.text+' was bought',value:it.doneAt?ymd(new Date(it.doneAt)):today(),max:today(),
         onchange:e=>{const v=e.target.value;if(!v||v>today())return;const [y,m,d]=v.split('-').map(Number),old=new Date(it.doneAt||Date.now());
           const at=Math.min(Date.now(),new Date(y,m-1,d,old.getHours(),old.getMinutes()).getTime());
@@ -988,8 +990,8 @@ function tripsSection(){const l=Object.values(S.trips).sort((x,y)=>(y.at||0)-(x.
       el('b',{class:'c',style:'color:var(--ink);font-size:16px',text:t.total?eur(t.total):'–'})))):
     el('p',{class:'empty',text:'Log a trip to keep what you bought and what it cost.'}),
     moreBtn(l,3,'tripsAll'));}
-const TR={id:null,date:'',store:'',total:'',sel:{},price:{},qty:{},extra:[]};
-function openTrip(id){const t=id&&S.trips[id];TR.id=id||null;TR.sel={};TR.price={};TR.qty={};TR.extra=[];
+const TR={id:null,date:'',store:'',total:'',sel:{},price:{},qty:{},name:{},extra:[]};
+function openTrip(id){const t=id&&S.trips[id];TR.id=id||null;TR.sel={};TR.price={};TR.qty={};TR.name={};TR.extra=[];
   if(t){TR.date=ymd(new Date(t.at));TR.store=t.store||'';TR.total=t.total?String(t.total):'';for(const x of t.items||[]){TR.sel[x.id]=true;if(x.price)TR.price[x.id]=String(x.price);if(x.qty)TR.qty[x.id]=String(x.qty);}}
   else{TR.date=today();TR.store='';TR.total='';for(const it of vis())if(it.kind==='shopping'&&it.done&&!it.tripId&&(it.doneAt||0)>Date.now()-3*864e5)TR.sel[it.id]=true;}
   show('tripSheet');drawTrip();}
@@ -998,12 +1000,14 @@ function tripCands(){const from=new Date(TR.date+'T00:00').getTime()-6*864e5,to=
 function drawTrip(){const box=$('tripBody'),c=tripCands(),t=TR.id&&S.trips[TR.id];
   const sum=c.filter(it=>TR.sel[it.id]).reduce((n,it)=>n+(money(TR.price[it.id])||0),0);
   const rows=c.map(it=>el('div',{class:'trow'},
-    el('button',{type:'button',class:'sitem'+(TR.sel[it.id]?' on':''),'aria-pressed':String(!!TR.sel[it.id]),onclick:()=>{TR.sel[it.id]=!TR.sel[it.id];drawTrip();}},el('i'),el('span',{text:it.text})),
+    el('button',{type:'button',class:'sitem tbox'+(TR.sel[it.id]?' on':''),'aria-pressed':String(!!TR.sel[it.id]),'aria-label':(TR.sel[it.id]?'Leave out ':'Include ')+it.text,onclick:()=>{TR.sel[it.id]=!TR.sel[it.id];drawTrip();}},el('i')),
+    TR.sel[it.id]?el('input',{class:'field tname',maxlength:'60','aria-label':'Name','value':TR.name[it.id]!=null?TR.name[it.id]:it.text,oninput:e=>{TR.name[it.id]=e.target.value;}}):el('span',{class:'tname off',text:it.text}),
     TR.sel[it.id]?el('input',{class:'field tqty',inputmode:'decimal',placeholder:'1×','aria-label':'How many '+it.text,value:TR.qty[it.id]||'',oninput:e=>{TR.qty[it.id]=e.target.value;}}):null,
     TR.sel[it.id]?el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+it.text,value:TR.price[it.id]||'',oninput:e=>{TR.price[it.id]=e.target.value;const h=$('trSum');if(h){const s2=c.filter(x=>TR.sel[x.id]).reduce((n,x)=>n+(money(TR.price[x.id])||0),0);const s3=s2+TR.extra.reduce((n,x)=>n+(money(x.price)||0),0);h.textContent=s3?'Items add up to '+eur(s3):'';}}}):null));
   const xsum=TR.extra.reduce((n,x)=>n+(money(x.price)||0),0);
   const xrows=TR.extra.map((x,i)=>el('div',{class:'trow'},
-    el('button',{type:'button',class:'sitem on','aria-pressed':'true','aria-label':'Remove '+x.t,onclick:()=>{TR.extra.splice(i,1);drawTrip();}},el('i'),el('span',{text:x.t})),
+    el('button',{type:'button',class:'sitem tbox on','aria-pressed':'true','aria-label':'Remove '+x.t,onclick:()=>{TR.extra.splice(i,1);drawTrip();}},el('i')),
+    el('input',{class:'field tname',maxlength:'60','aria-label':'Name',value:x.t,oninput:e=>{x.t=e.target.value;}}),
     el('input',{class:'field tqty',inputmode:'decimal',placeholder:'1×','aria-label':'How many '+x.t,value:x.qty||'',oninput:e=>{x.qty=e.target.value;}}),
     el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+x.t,value:x.price||'',oninput:e=>{x.price=e.target.value;}})));
   const nx=el('input',{class:'field',id:'trNew',maxlength:'60',placeholder:'Something you did not tick','aria-label':'Something else you bought',style:'flex:1;min-width:0'});
@@ -1025,13 +1029,14 @@ async function saveTrip(){const c=tripCands(),chosen=c.filter(it=>TR.sel[it.id])
   const [y,m,d]=TR.date.split('-').map(Number),old=TR.id&&S.trips[TR.id];
   const at=old&&ymd(new Date(old.at))===TR.date?old.at:Math.min(Date.now(),new Date(y,m-1,d,18,0).getTime());
   const id=TR.id||uid(),extra=[];
-  for(const x of TR.extra){const k=x.t.trim().toLowerCase(),pr=money(x.price);
+  for(const x of TR.extra){if(!x.t.trim())continue;const k=x.t.trim().toLowerCase(),pr=money(x.price);
     const open=vis().find(it=>it.kind==='shopping'&&!it.done&&it.text.trim().toLowerCase()===k);
     if(open){extra.push({id:open.id,text:open.text,price:pr,qty:qnum(x.qty),tick:true});}
     else extra.push({id:uid(),text:x.t.trim(),price:pr,qty:qnum(x.qty),make:true});}
-  const data={who:old?old.who:ui.me,at,store:TR.store.trim(),total,items:[...chosen.map(it=>({id:it.id,text:it.text,price:money(TR.price[it.id]),qty:qnum(TR.qty[it.id])})),...extra.map(x=>({id:x.id,text:x.text,price:x.price,qty:x.qty}))],createdAt:old?old.createdAt:Date.now()};
+  const data={who:old?old.who:ui.me,at,store:TR.store.trim(),total,items:[...chosen.map(it=>({id:it.id,text:(TR.name[it.id]||it.text).trim()||it.text,price:money(TR.price[it.id]),qty:qnum(TR.qty[it.id])})),...extra.map(x=>({id:x.id,text:x.text,price:x.price,qty:x.qty}))],createdAt:old?old.createdAt:Date.now()};
   hide();await put('trips',id,data);
-  for(const it of chosen){const pr=money(TR.price[it.id]);if(it.tripId!==id||(it.price||null)!==pr)await patch('items',it.id,{tripId:id,price:pr});}
+  for(const it of chosen){const pr=money(TR.price[it.id]),nm=(TR.name[it.id]||it.text).trim()||it.text,up={};
+    if(it.tripId!==id)up.tripId=id;if((it.price||null)!==pr)up.price=pr;if(nm!==it.text)up.text=nm;if(Object.keys(up).length)await patch('items',it.id,up);}
   for(const it of c)if(!TR.sel[it.id]&&it.tripId===id)await patch('items',it.id,{tripId:null,price:null});
   for(const x of extra){
     if(x.tick)await patch('items',x.id,{done:true,doneAt:at,doneBy:ui.me,tripId:id,price:x.price});
