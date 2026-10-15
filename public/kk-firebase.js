@@ -164,7 +164,7 @@ onAuthStateChanged(auth, user => {
 });
 
 /* ---------- push notifications ---------- */
-const PREFS = [
+const prefsList = () => [
   ['ask', o => 'When ' + names[o] + ' asks you to do something'],
   ['answer', o => 'When ' + names[o] + ' answers your request'],
   ['shared', o => 'When ' + names[o] + ' adds shopping or a together task'],
@@ -172,10 +172,8 @@ const PREFS = [
   ['focus', o => 'When ' + names[o] + ' starts focusing'],
   ['breaks', o => 'When ' + names[o] + ' takes a break'],
   ['nudge', () => 'When my break time is up'],
-  ['wish', o => 'When ' + names[o] + ' asks for something today'],
-  ['cycle', o => "Heads-up about " + names[o] + "'s cycle"],
-  ['cycleStart', () => 'When my period may start'],
-  ['cycleLog', () => 'Evening check-in reminder on period days'],
+  ...(me === 'a' ? [['wish', o => 'When ' + names[o] + ' asks for something today'], ['cycle', o => 'Heads-up about ' + names[o] + "'s cycle"]]
+    : [['wish', o => 'When ' + names[o] + ' answers your request'], ['cycleStart', () => 'When my period may start'], ['cycleLog', () => 'Evening check-in reminder on period days']]),
   ['plan', () => '15 minutes before something you planned'],
   ['morning', () => 'Morning summary at 8:00'],
   ['goal', () => 'Shared goal reached and rewards redeemed'],
@@ -232,7 +230,7 @@ function drawPush() {
     }})));
   kids.push(msg);
   kids.push(el('span', {text: 'Tell me'}));
-  kids.push(...PREFS.map(([k, label]) => el('label', {class: 'pref'},
+  kids.push(...prefsList().map(([k, label]) => el('label', {class: 'pref'},
     el('input', {type: 'checkbox', checked: prefs[k] !== false, onchange: e => {
       prefs = Object.assign({}, prefs, {[k]: e.target.checked});
       setDoc(doc(fs, 'users', uid), {prefs}, {merge: true}).catch(() => {});

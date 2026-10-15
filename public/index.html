@@ -742,6 +742,7 @@ $('breakBtn').onclick=openBreak;
 /* ---------- cycle tracking ----------
    Her private data (periods, daily check-ins, settings) lives under users/<her uid>/, which the rules let only her read.
    The partner only sees cycle/<a|b>: a summary she controls (off / dates / dates + how she feels). No points here. */
+const TRACKER='b';
 const AGLAS=[['loaf','🍞','Loaf mode','loaf',''],['grumpy','😾','Grumpy','sit','judging'],['zoomies','🌀','Zoomies','play','happy'],['cuddly','🫶','Cuddly','sit','happy'],['alone','🙈','Leave me alone','box',''],['sleepy','😴','Sleepy','sleep','sleepy']];
 const SYMS=['Cramps','Headache','Bloating','Back pain','Tender','Tired','Cravings','Spots','Nausea'];
 const WORDS=['Calm','Foggy','Sensitive','Restless','Teary','Irritable','Content','Anxious','Strong'];
@@ -792,7 +793,9 @@ function aglaArt(k,s){const a=AGLAS.find(x=>x[0]===k);if(!a)return null;const w=
 function bar(v,l,r){return el('div',{class:'cybar'},el('span',{text:l}),el('div',{class:'cytrack'},el('i',{style:'left:'+Math.max(0,Math.min(100,v))+'%'})),el('span',{text:r}));}
 
 function vCycle(){const o=other(ui.me),sd=S.share[o],c=ccfg(),out=[];
-  if(sd&&sd.level&&sd.level!=='off')out.push(...partnerCycle(o,sd));
+  if(ui.me!==TRACKER){if(sd&&sd.level&&sd.level!=='off')out.push(...partnerCycle(o,sd));
+    else out.push(el('section',{class:'sec'},el('h2',{text:name(TRACKER)+"'s cycle"}),el('p',{class:'empty',text:sd&&sd.level==='off'?name(TRACKER)+' keeps her cycle private right now.':name(TRACKER)+' has not started tracking yet.'})));
+    return out;}
   if(c.on)out.push(...ownCycle());
   else if(!sd||sd.level==='off')out.push(el('section',{class:'sec'},el('h2',{text:'Cycle'}),el('p',{class:'fmeta',style:'margin:0',text:'Track your period privately. You decide what '+name(o)+' sees: nothing, the dates, or the dates and how you feel.'}),
     el('button',{class:'btn',style:'align-self:flex-start',text:'Start tracking',onclick:()=>saveCcfg({on:true,level:'feel'})})));
@@ -869,7 +872,7 @@ const WDONT=['🎵 No singing','🙅 No touching','🤐 No teasing or jokes','�
 const WPLS=['🫂 Hugs please','🫖 Make me tea','🍫 Bring me chocolate','🍲 Cook today','💊 Get painkillers','🧸 Hot water bottle','🛋️ Some time alone','🎬 Watch something together'];
 const WD={dont:[],please:[],note:''};
 const wishesToday=(from)=>Object.values(S.wishes).filter(w=>w.day===today()&&w.from===from).sort((a,b)=>a.at-b.at);
-function openWish(){WD.dont=[];WD.please=[];WD.note='';show('wishSheet');drawWish();}
+function openWish(){if(ui.me!==TRACKER)return;WD.dont=[];WD.please=[];WD.note='';show('wishSheet');drawWish();}
 function drawWish(){const o=other(ui.me),mine=wishesToday(ui.me),cw=ccfg();
   const grp=(title,list,key,customKey)=>el('div',{class:'fl'},title,el('div',{class:'chips'},[...list,...(cw[customKey]||[])].map(w=>el('button',{type:'button',class:'chip','aria-pressed':String(WD[key].includes(w)),text:w,onclick:()=>{const i=WD[key].indexOf(w);i<0?WD[key].push(w):WD[key].splice(i,1);drawWish();}})),
     el('button',{type:'button',class:'chip',text:'+ own',onclick:()=>{const v=(prompt(key==='dont'?'Please don\'t…':'Please…')||'').trim().slice(0,40);if(!v)return;const t='✨ '+v;WD[key].push(t);saveCcfg({[customKey]:[...new Set([...(cw[customKey]||[]),t])].slice(-8)});drawWish();}})));
@@ -1312,7 +1315,7 @@ function capChips(){const box=$('capCats'),txt=$('capInput').value.trim(),ok=txt
 function drawCats(){$('setCats').replaceChildren(...(cats().length?cats().map(c=>el('button',{type:'button',class:'chip',style:'--h:'+hue(c),'aria-label':'Remove category '+c,onclick:()=>saveCfg({cats:cats().filter(x=>x!==c)})},el('i'),c+'  ×')):[el('span',{text:'No categories yet.'})]));}
 function render(){
   if(ui.dragging)return;
-  document.body.dataset.me=ui.me;
+  document.body.dataset.me=ui.me;$('wishBtn').hidden=ui.me!==TRACKER;
   $('meName').textContent=name(ui.me);$('meDot').className='dot '+ui.me;
   $('whoNote').hidden=ui.meKnown;$('whoA').textContent=name('a');$('whoB').textContent=name('b');
   const isCat=ui.tab.slice(0,4)==='cat:',cur=isCat?ui.tab.slice(4):null,v=VIEWS[ui.tab]||(isCat?[cur,'Add to '+cur+'…']:VIEWS.inbox);
@@ -1327,7 +1330,7 @@ function render(){
   $('nav').replaceChildren(
     nb('day','Schedule',cnt.day,null,'main'),nb('inbox','Inbox',cnt.inbox,null,'main'),
     el('h3',{class:'main',text:'Lists'}),nb('todo','To-dos',cnt.todo,null,'main'),nb('shopping','Shopping',cnt.shopping,null,'main'),nb('idea','Ideas',n(i=>i.kind==='idea')),
-    nb('rewards','Rewards',balance(ui.me)+' pts'),nb('cycle',S.share[other(ui.me)]&&S.share[other(ui.me)].level!=='off'&&!(S.ccfg&&S.ccfg.on)?name(other(ui.me))+"'s cycle":'Cycle',null),nb('activity','Activity',null),nb('review','Weekly review',n(i=>(i.date&&i.date<today())||(i.due&&i.due<today()))),
+    nb('rewards','Rewards',balance(ui.me)+' pts'),nb('cycle',ui.me===TRACKER?'Cycle':name(TRACKER)+"'s cycle",null),nb('activity','Activity',null),nb('review','Weekly review',n(i=>(i.date&&i.date<today())||(i.due&&i.due<today()))),
     el('button',{class:'nav grp','aria-expanded':String(showCats),onclick:()=>{ui.catsOpen=!showCats;if(isCat&&showCats)ui.tab='todo';render();}},el('span',{text:'Categories'}),el('b',{text:showCats?'Hide':'Show '+cats().length})),
     ...(showCats?cats().map(c=>nb('cat:'+c,c,n(i=>i.cat===c),hue(c))):[]));
   const tb=(id,label,count)=>el('button',{'aria-current':ui.tab===id?'page':null,onclick:()=>go(id)},el('b',{text:String(count)}),label);
