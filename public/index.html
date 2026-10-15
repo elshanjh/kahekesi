@@ -324,7 +324,13 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .trow{display:flex;align-items:center;gap:6px}.trow .sitem{flex:1;min-width:0}
 .trow .sitem.on span{text-decoration:none;color:var(--ink)}.trow .sitem:not(.on) span{color:var(--muted)}
 .trow.tadd{padding:6px 4px 4px;border-top:1px solid var(--line);margin-top:2px}.trow.tadd .field{min-height:40px;padding:8px 10px}
-.tprice{flex:none;width:84px;min-height:38px;padding:6px 10px;text-align:right}
+.sres{display:flex;flex-direction:column;gap:8px}.sres:empty{display:none}
+.sgroup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.shead{display:flex;align-items:center;gap:8px}.shead>div{flex:1;min-width:0;display:flex;flex-direction:column}.shead small{color:var(--muted);font-size:12.5px}
+.slines{display:flex;flex-direction:column;gap:2px;font-size:13.5px;color:var(--muted)}
+.sline{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding-top:4px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}.sline span:last-child{color:var(--ink);font-weight:600}
+.tqty{flex:none;width:52px;min-height:38px;padding:6px 8px;text-align:center}
+.tprice{flex:none;width:76px;min-height:38px;padding:6px 10px;text-align:right}
 .bdate{flex:none;width:auto;min-height:36px;padding:5px 8px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-size:14px;color:var(--ink)}
 .privtog{align-self:flex-start;display:flex;flex-direction:column;align-items:flex-start;gap:1px;font-size:14px;font-weight:600;color:var(--muted);padding:2px 0}
 .privtog small{font-size:12px;font-weight:500;opacity:.8}
@@ -926,6 +932,7 @@ function vTodo(){
   const lowChip=el('div',{class:'tools'},el('button',{class:'chip','aria-pressed':String(ui.low),text:ui.low?'Low energy: showing quick tasks only':'Low energy? Show quick tasks only',onclick:()=>{ui.low=!ui.low;ls.set('low',ui.low?'1':'0');render();}}));
   return [seg,lowChip,key(),section(ui.low?'Quick to-dos':'To-dos',sorted(vis().filter(it=>it.kind==='todo'&&!it.done&&f(it)&&(!ui.low||isQuick(it)))).sort((x,y)=>(x.ord==null?-1:x.ord)-(y.ord==null?-1:y.ord)),'No open to-dos. Type one into the bar above.',true,null,true),
     done.length?section('Done today',done,'',false,done.length+' finished'):null];}
+const qnum=v=>{const n=parseFloat(String(v||'').replace(',','.'));return isFinite(n)&&n>0?Math.round(n*100)/100:null;};
 const eur=n=>'€'+(Math.round(n*100)/100).toFixed(2).replace(/\.00$/,'');
 const money=v=>{const n=parseFloat(String(v||'').replace(',','.').replace(/[^0-9.]/g,''));return isFinite(n)&&n>0?Math.round(n*100)/100:null;};
 const lastPrice=text=>{const k=text.trim().toLowerCase();let at=0,pr=null;for(const it of items())if(it.kind==='shopping'&&it.done&&it.price&&(it.doneAt||0)>at&&it.text.trim().toLowerCase()===k){at=it.doneAt;pr=it.price;}return pr;};
@@ -944,7 +951,22 @@ function vShop(){
     again.length?el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Buy again'}),el('span',{text:'last bought'})),
       el('div',{class:'chips'},more(again,6,'againAll').map(a=>el('button',{class:'chip','aria-label':'Add '+a.t+' again, last bought '+boughtAgo(a.at),onclick:()=>{put('items',uid(),fresh(blank({text:a.t,kind:'shopping',owner:'both',points:5})));toast('Added '+a.t+'. Last bought '+boughtAgo(a.at)+'.');}},'+ '+a.t,el('small',{class:'ago',text:' · '+boughtAgo(a.at)+(a.pr?' · '+eur(a.pr):'')})))),
       moreBtn(again,6,'againAll')):null,
-    tripsSection(),recentBought()];}
+    searchBox(),tripsSection(),recentBought()];}
+// Search everything you have bought: when, where, how many and for how much.
+function purchases(){const out=[];for(const it of items()){if(it.kind!=='shopping'||!it.done)continue;const t=it.tripId&&S.trips[it.tripId],x=t&&(t.items||[]).find(y=>y.id===it.id);
+  out.push({k:it.text.trim().toLowerCase(),text:it.text.trim(),at:it.doneAt||0,price:it.price||(x&&x.price)||null,qty:x&&x.qty||null,store:t&&t.store||'',who:it.doneBy});}return out;}
+function searchBox(){const inp=el('input',{class:'field',id:'shopQ',type:'search',placeholder:'🔍 When did we last buy…','aria-label':'Search what you bought',value:ui.shopQ||'',
+    oninput:e=>{ui.shopQ=e.target.value;$('shopRes').replaceChildren(...searchResults());}});
+  return el('section',{class:'sec'},inp,el('div',{id:'shopRes',class:'sres'},...searchResults()));}
+function searchResults(){const q=(ui.shopQ||'').trim().toLowerCase();if(!q)return [];
+  const g={};for(const p of purchases())if(p.k.includes(q))(g[p.k]=g[p.k]||[]).push(p);
+  const groups=Object.values(g).map(l=>l.sort((x,y)=>y.at-x.at)).sort((x,y)=>y[0].at-x[0].at).slice(0,8);
+  const onList=t=>vis().some(it=>it.kind==='shopping'&&!it.done&&it.text.trim().toLowerCase()===t);
+  if(!groups.length)return [el('p',{class:'empty',text:'Nothing called "'+ui.shopQ.trim()+'" bought yet.'})];
+  return groups.map(l=>{const last=l[0],pr=l.find(p=>p.price);
+    return el('div',{class:'sgroup'},el('div',{class:'shead'},el('div',{},el('b',{text:last.text}),el('small',{text:'last bought '+boughtAgo(last.at)+(pr?' · '+eur(pr.price):'')+' · '+l.length+(l.length===1?' time':' times')})),
+        onList(last.k)?el('span',{class:'pill',text:'on the list'}):el('button',{class:'btn ghost small',text:'+ List',onclick:e=>{put('items',uid(),fresh(blank({text:last.text,kind:'shopping',owner:'both',points:5})));toast('Added '+last.text+'.');e.currentTarget.replaceWith(el('span',{class:'pill',text:'on the list'}));}})),
+      el('div',{class:'slines'},l.slice(0,5).map(p=>el('div',{class:'sline'},el('span',{text:fmtDay(ymd(new Date(p.at)))}),el('span',{text:[p.store,p.qty?p.qty+'×':null].filter(Boolean).join(' · ')}),el('span',{text:p.price?eur(p.price):''})))));});}
 // Recently bought: fix the date when something was ticked late, or put it back on the list.
 function recentBought(){const all=vis().filter(it=>it.kind==='shopping'&&it.done).sort((x,y)=>(y.doneAt||0)-(x.doneAt||0));
   if(!all.length)return null;
@@ -966,9 +988,9 @@ function tripsSection(){const l=Object.values(S.trips).sort((x,y)=>(y.at||0)-(x.
       el('b',{class:'c',style:'color:var(--ink);font-size:16px',text:t.total?eur(t.total):'–'})))):
     el('p',{class:'empty',text:'Log a trip to keep what you bought and what it cost.'}),
     moreBtn(l,3,'tripsAll'));}
-const TR={id:null,date:'',store:'',total:'',sel:{},price:{},extra:[]};
-function openTrip(id){const t=id&&S.trips[id];TR.id=id||null;TR.sel={};TR.price={};TR.extra=[];
-  if(t){TR.date=ymd(new Date(t.at));TR.store=t.store||'';TR.total=t.total?String(t.total):'';for(const x of t.items||[]){TR.sel[x.id]=true;if(x.price)TR.price[x.id]=String(x.price);}}
+const TR={id:null,date:'',store:'',total:'',sel:{},price:{},qty:{},extra:[]};
+function openTrip(id){const t=id&&S.trips[id];TR.id=id||null;TR.sel={};TR.price={};TR.qty={};TR.extra=[];
+  if(t){TR.date=ymd(new Date(t.at));TR.store=t.store||'';TR.total=t.total?String(t.total):'';for(const x of t.items||[]){TR.sel[x.id]=true;if(x.price)TR.price[x.id]=String(x.price);if(x.qty)TR.qty[x.id]=String(x.qty);}}
   else{TR.date=today();TR.store='';TR.total='';for(const it of vis())if(it.kind==='shopping'&&it.done&&!it.tripId&&(it.doneAt||0)>Date.now()-3*864e5)TR.sel[it.id]=true;}
   show('tripSheet');drawTrip();}
 function tripCands(){const from=new Date(TR.date+'T00:00').getTime()-6*864e5,to=new Date(TR.date+'T23:59').getTime()+864e5;
@@ -977,10 +999,12 @@ function drawTrip(){const box=$('tripBody'),c=tripCands(),t=TR.id&&S.trips[TR.id
   const sum=c.filter(it=>TR.sel[it.id]).reduce((n,it)=>n+(money(TR.price[it.id])||0),0);
   const rows=c.map(it=>el('div',{class:'trow'},
     el('button',{type:'button',class:'sitem'+(TR.sel[it.id]?' on':''),'aria-pressed':String(!!TR.sel[it.id]),onclick:()=>{TR.sel[it.id]=!TR.sel[it.id];drawTrip();}},el('i'),el('span',{text:it.text})),
+    TR.sel[it.id]?el('input',{class:'field tqty',inputmode:'decimal',placeholder:'1×','aria-label':'How many '+it.text,value:TR.qty[it.id]||'',oninput:e=>{TR.qty[it.id]=e.target.value;}}):null,
     TR.sel[it.id]?el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+it.text,value:TR.price[it.id]||'',oninput:e=>{TR.price[it.id]=e.target.value;const h=$('trSum');if(h){const s2=c.filter(x=>TR.sel[x.id]).reduce((n,x)=>n+(money(TR.price[x.id])||0),0);const s3=s2+TR.extra.reduce((n,x)=>n+(money(x.price)||0),0);h.textContent=s3?'Items add up to '+eur(s3):'';}}}):null));
   const xsum=TR.extra.reduce((n,x)=>n+(money(x.price)||0),0);
   const xrows=TR.extra.map((x,i)=>el('div',{class:'trow'},
     el('button',{type:'button',class:'sitem on','aria-pressed':'true','aria-label':'Remove '+x.t,onclick:()=>{TR.extra.splice(i,1);drawTrip();}},el('i'),el('span',{text:x.t})),
+    el('input',{class:'field tqty',inputmode:'decimal',placeholder:'1×','aria-label':'How many '+x.t,value:x.qty||'',oninput:e=>{x.qty=e.target.value;}}),
     el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+x.t,value:x.price||'',oninput:e=>{x.price=e.target.value;}})));
   const nx=el('input',{class:'field',id:'trNew',maxlength:'60',placeholder:'Something you did not tick','aria-label':'Something else you bought',style:'flex:1;min-width:0'});
   const np=el('input',{class:'field tprice',id:'trNewP',inputmode:'decimal',placeholder:'€','aria-label':'Its price'});
@@ -1003,9 +1027,9 @@ async function saveTrip(){const c=tripCands(),chosen=c.filter(it=>TR.sel[it.id])
   const id=TR.id||uid(),extra=[];
   for(const x of TR.extra){const k=x.t.trim().toLowerCase(),pr=money(x.price);
     const open=vis().find(it=>it.kind==='shopping'&&!it.done&&it.text.trim().toLowerCase()===k);
-    if(open){extra.push({id:open.id,text:open.text,price:pr,tick:true});}
-    else extra.push({id:uid(),text:x.t.trim(),price:pr,make:true});}
-  const data={who:old?old.who:ui.me,at,store:TR.store.trim(),total,items:[...chosen.map(it=>({id:it.id,text:it.text,price:money(TR.price[it.id])})),...extra.map(x=>({id:x.id,text:x.text,price:x.price}))],createdAt:old?old.createdAt:Date.now()};
+    if(open){extra.push({id:open.id,text:open.text,price:pr,qty:qnum(x.qty),tick:true});}
+    else extra.push({id:uid(),text:x.t.trim(),price:pr,qty:qnum(x.qty),make:true});}
+  const data={who:old?old.who:ui.me,at,store:TR.store.trim(),total,items:[...chosen.map(it=>({id:it.id,text:it.text,price:money(TR.price[it.id]),qty:qnum(TR.qty[it.id])})),...extra.map(x=>({id:x.id,text:x.text,price:x.price,qty:x.qty}))],createdAt:old?old.createdAt:Date.now()};
   hide();await put('trips',id,data);
   for(const it of chosen){const pr=money(TR.price[it.id]);if(it.tripId!==id||(it.price||null)!==pr)await patch('items',it.id,{tripId:id,price:pr});}
   for(const it of c)if(!TR.sel[it.id]&&it.tripId===id)await patch('items',it.id,{tripId:null,price:null});
@@ -1152,7 +1176,7 @@ function render(){
   const t=ui.tab,built=t==='inbox'?vInbox():t==='todo'?vTodo():t==='shopping'?vShop():t==='idea'?vIdea():t==='day'?vDay():t==='review'?vReview():t==='activity'?vActivity():isCat?vCat(cur):vRewards();
   draft=null;
   $('view').replaceChildren(...built.filter(Boolean));
-  if((focus==='rwTitle'||focus==='rwCost')&&$(focus))$(focus).focus();
+  if((focus==='rwTitle'||focus==='rwCost'||focus==='shopQ')&&$(focus)){const f=$(focus);f.focus();if(focus==='shopQ')try{f.setSelectionRange(f.value.length,f.value.length)}catch(e){}}
   drawWith();if(!$('overlay').hidden&&!$('focusSheet').hidden)drawFocus();
   if(!$('overlay').hidden&&!$('breakSheet').hidden&&!(document.activeElement&&document.activeElement.id==='bkNew'))drawBreak();
 }
