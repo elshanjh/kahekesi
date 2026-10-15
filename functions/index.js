@@ -56,7 +56,7 @@ exports.onItem = onDocumentWritten('items/{id}', async ev => {
   if (b && b.ask === 'pending' && (a.ask === 'accepted' || a.ask === 'declined') && a.askedBy) {
     await to([a.askedBy], 'answer', {title: nm(c, a.owner) + (a.ask === 'accepted' ? ' accepted' : ' said not now'), body: t, tag: 'ans-' + id, url: '/?tab=inbox'});
   }
-  if (!b && (a.createdBy === 'a' || a.createdBy === 'b') && !a.ask && (!a.repeat || a.repeat === 'none')) {
+  if (!b && !a.done && (a.createdBy === 'a' || a.createdBy === 'b') && !a.ask && (!a.repeat || a.repeat === 'none')) {
     if (a.kind === 'shopping') await to([other(a.createdBy)], 'shared', {title: nm(c, a.createdBy) + ' added to shopping', body: t, tag: 'shop-' + id, url: '/?tab=shopping'});
     else if (a.owner === 'both') await to([other(a.createdBy)], 'shared', {title: nm(c, a.createdBy) + ' added a together task', body: t, tag: 'tog-' + id, url: '/?tab=todo'});
   }

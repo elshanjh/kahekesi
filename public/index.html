@@ -323,6 +323,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .tlist{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
 .trow{display:flex;align-items:center;gap:6px}.trow .sitem{flex:1;min-width:0}
 .trow .sitem.on span{text-decoration:none;color:var(--ink)}.trow .sitem:not(.on) span{color:var(--muted)}
+.trow.tadd{padding:6px 4px 4px;border-top:1px solid var(--line);margin-top:2px}.trow.tadd .field{min-height:40px;padding:8px 10px}
 .tprice{flex:none;width:84px;min-height:38px;padding:6px 10px;text-align:right}
 .bdate{flex:none;width:auto;min-height:36px;padding:5px 8px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-size:14px;color:var(--ink)}
 .privtog{align-self:flex-start;display:flex;flex-direction:column;align-items:flex-start;gap:1px;font-size:14px;font-weight:600;color:var(--muted);padding:2px 0}
@@ -965,8 +966,8 @@ function tripsSection(){const l=Object.values(S.trips).sort((x,y)=>(y.at||0)-(x.
       el('b',{class:'c',style:'color:var(--ink);font-size:16px',text:t.total?eur(t.total):'–'})))):
     el('p',{class:'empty',text:'Log a trip to keep what you bought and what it cost.'}),
     moreBtn(l,3,'tripsAll'));}
-const TR={id:null,date:'',store:'',total:'',sel:{},price:{}};
-function openTrip(id){const t=id&&S.trips[id];TR.id=id||null;TR.sel={};TR.price={};
+const TR={id:null,date:'',store:'',total:'',sel:{},price:{},extra:[]};
+function openTrip(id){const t=id&&S.trips[id];TR.id=id||null;TR.sel={};TR.price={};TR.extra=[];
   if(t){TR.date=ymd(new Date(t.at));TR.store=t.store||'';TR.total=t.total?String(t.total):'';for(const x of t.items||[]){TR.sel[x.id]=true;if(x.price)TR.price[x.id]=String(x.price);}}
   else{TR.date=today();TR.store='';TR.total='';for(const it of vis())if(it.kind==='shopping'&&it.done&&!it.tripId&&(it.doneAt||0)>Date.now()-3*864e5)TR.sel[it.id]=true;}
   show('tripSheet');drawTrip();}
@@ -976,23 +977,41 @@ function drawTrip(){const box=$('tripBody'),c=tripCands(),t=TR.id&&S.trips[TR.id
   const sum=c.filter(it=>TR.sel[it.id]).reduce((n,it)=>n+(money(TR.price[it.id])||0),0);
   const rows=c.map(it=>el('div',{class:'trow'},
     el('button',{type:'button',class:'sitem'+(TR.sel[it.id]?' on':''),'aria-pressed':String(!!TR.sel[it.id]),onclick:()=>{TR.sel[it.id]=!TR.sel[it.id];drawTrip();}},el('i'),el('span',{text:it.text})),
-    TR.sel[it.id]?el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+it.text,value:TR.price[it.id]||'',oninput:e=>{TR.price[it.id]=e.target.value;const h=$('trSum');if(h){const s2=c.filter(x=>TR.sel[x.id]).reduce((n,x)=>n+(money(TR.price[x.id])||0),0);h.textContent=s2?'Items add up to '+eur(s2):'';}}}):null));
+    TR.sel[it.id]?el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+it.text,value:TR.price[it.id]||'',oninput:e=>{TR.price[it.id]=e.target.value;const h=$('trSum');if(h){const s2=c.filter(x=>TR.sel[x.id]).reduce((n,x)=>n+(money(TR.price[x.id])||0),0);const s3=s2+TR.extra.reduce((n,x)=>n+(money(x.price)||0),0);h.textContent=s3?'Items add up to '+eur(s3):'';}}}):null));
+  const xsum=TR.extra.reduce((n,x)=>n+(money(x.price)||0),0);
+  const xrows=TR.extra.map((x,i)=>el('div',{class:'trow'},
+    el('button',{type:'button',class:'sitem on','aria-pressed':'true','aria-label':'Remove '+x.t,onclick:()=>{TR.extra.splice(i,1);drawTrip();}},el('i'),el('span',{text:x.t})),
+    el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+x.t,value:x.price||'',oninput:e=>{x.price=e.target.value;}})));
+  const nx=el('input',{class:'field',id:'trNew',maxlength:'60',placeholder:'Something you did not tick','aria-label':'Something else you bought',style:'flex:1;min-width:0'});
+  const np=el('input',{class:'field tprice',id:'trNewP',inputmode:'decimal',placeholder:'€','aria-label':'Its price'});
+  const addX=()=>{const v=nx.value.trim();if(!v)return;TR.extra.push({t:v,price:np.value});drawTrip();setTimeout(()=>$('trNew')&&$('trNew').focus(),20);};
+  nx.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addX();}});np.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addX();}});
+  const addLine=el('div',{class:'trow tadd'},nx,np,el('button',{type:'button',class:'btn ghost small',text:'Add',onclick:addX}));
   box.replaceChildren(...[el('h2',{text:t?'Shop trip':'Log a shop trip'}),
     el('div',{class:'r'},el('label',{class:'f'},'Shop',el('input',{class:'field',placeholder:'Rimi, Lidl…',value:TR.store,maxlength:'40',oninput:e=>TR.store=e.target.value})),
       el('label',{class:'f'},'Total',el('input',{class:'field',inputmode:'decimal',placeholder:'€ 20',value:TR.total,oninput:e=>TR.total=e.target.value}))),
     el('label',{class:'f'},'Day',el('input',{class:'field',type:'date',max:today(),value:TR.date,onchange:e=>{TR.date=e.target.value||today();drawTrip();}})),
-    el('div',{class:'fl'},'What you bought'+(c.length?', prices are optional':''),c.length?el('div',{class:'tlist'},rows):el('p',{class:'gmsg',style:'text-align:left;margin:0',text:'Nothing ticked as bought around that day. Tick items on the shopping list first, or pick another day.'})),
-    el('p',{class:'fmeta',id:'trSum',style:'margin:0',text:sum?'Items add up to '+eur(sum):''}),
+    el('div',{class:'fl'},'What you bought, prices are optional',el('div',{class:'tlist'},rows,xrows,addLine)),
+    el('p',{class:'fmeta',id:'trSum',style:'margin:0',text:sum+xsum?'Items add up to '+eur(sum+xsum):''}),
     el('div',{class:'acts'},el('button',{class:'btn',text:t?'Save':'Save trip',onclick:saveTrip}),t?el('button',{class:'btn ghost danger',text:'Delete',onclick:e=>twoTap(e.currentTarget,()=>delTrip(t))}):null,el('button',{class:'btn ghost',text:'Cancel',onclick:hide}))].filter(Boolean));}
 async function saveTrip(){const c=tripCands(),chosen=c.filter(it=>TR.sel[it.id]);
-  if(!chosen.length&&!money(TR.total)){toast('Pick what you bought or type the total.');return;}
-  const sum=chosen.reduce((n,it)=>n+(money(TR.price[it.id])||0),0),total=money(TR.total)||(sum||null);
+  {const v=$('trNew')&&$('trNew').value.trim();if(v)TR.extra.push({t:v,price:$('trNewP').value});}
+  if(!chosen.length&&!TR.extra.length&&!money(TR.total)){toast('Pick what you bought or type the total.');return;}
+  const sum=chosen.reduce((n,it)=>n+(money(TR.price[it.id])||0),0)+TR.extra.reduce((n,x)=>n+(money(x.price)||0),0),total=money(TR.total)||(sum||null);
   const [y,m,d]=TR.date.split('-').map(Number),old=TR.id&&S.trips[TR.id];
   const at=old&&ymd(new Date(old.at))===TR.date?old.at:Math.min(Date.now(),new Date(y,m-1,d,18,0).getTime());
-  const id=TR.id||uid(),data={who:old?old.who:ui.me,at,store:TR.store.trim(),total,items:chosen.map(it=>({id:it.id,text:it.text,price:money(TR.price[it.id])})),createdAt:old?old.createdAt:Date.now()};
+  const id=TR.id||uid(),extra=[];
+  for(const x of TR.extra){const k=x.t.trim().toLowerCase(),pr=money(x.price);
+    const open=vis().find(it=>it.kind==='shopping'&&!it.done&&it.text.trim().toLowerCase()===k);
+    if(open){extra.push({id:open.id,text:open.text,price:pr,tick:true});}
+    else extra.push({id:uid(),text:x.t.trim(),price:pr,make:true});}
+  const data={who:old?old.who:ui.me,at,store:TR.store.trim(),total,items:[...chosen.map(it=>({id:it.id,text:it.text,price:money(TR.price[it.id])})),...extra.map(x=>({id:x.id,text:x.text,price:x.price}))],createdAt:old?old.createdAt:Date.now()};
   hide();await put('trips',id,data);
   for(const it of chosen){const pr=money(TR.price[it.id]);if(it.tripId!==id||(it.price||null)!==pr)await patch('items',it.id,{tripId:id,price:pr});}
   for(const it of c)if(!TR.sel[it.id]&&it.tripId===id)await patch('items',it.id,{tripId:null,price:null});
+  for(const x of extra){
+    if(x.tick)await patch('items',x.id,{done:true,doneAt:at,doneBy:ui.me,tripId:id,price:x.price});
+    else await put('items',x.id,Object.assign(fresh(blank({text:x.text,kind:'shopping',owner:'both',points:5})),{done:true,doneAt:at,doneBy:ui.me,tripId:id,price:x.price}));}
   toast('Trip saved'+(total?': '+eur(total):'')+'.');}
 async function delTrip(t){hide();await del('trips',t.id);for(const x of t.items||[]){const it=S.items[x.id];if(it&&it.tripId===t.id)await patch('items',it.id,{tripId:null,price:null});}toast('Trip deleted. The items stay as bought.');}
 function boughtAgo(at){if(!at)return 'a while ago';const d=ymd(new Date(at)),t=today();if(d===t)return 'today';if(d===addDays(t,-1))return 'yesterday';
