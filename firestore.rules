@@ -19,13 +19,13 @@ service cloud.firestore {
       match /tokens/{t} {
         allow read, write: if allowed() && request.auth.uid == uid;
       }
-      // Private breaks: only the person who took them.
-      match /breaks/{b} {
-        allow read, write: if allowed() && request.auth.uid == uid;
+      // Private data: breaks marked private, and the cycle tracker. Only the person themselves.
+      match /{sub}/{d} {
+        allow read, write: if allowed() && request.auth.uid == uid && sub in ['breaks', 'periods', 'cdays', 'cyclecfg'];
       }
     }
     match /{coll}/{id} {
-      allow read, write: if allowed() && coll in ['items', 'rewards', 'redemptions', 'status', 'config', 'breaks', 'trips'];
+      allow read, write: if allowed() && coll in ['items', 'rewards', 'redemptions', 'status', 'config', 'breaks', 'trips', 'cycle', 'wishes'];
     }
   }
 }

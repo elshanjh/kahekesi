@@ -113,6 +113,46 @@ exports.onUser = onDocumentWritten('users/{uid}', async ev => {
   await push((d, id) => id === ev.params.uid, 'test', {title: 'Kahekesi works', body: 'Notifications are on for this device. Agla says hi.', tag: 'test'});
 });
 
+/* ---------- cycle: predictions from the person's own history (same rules as the app) ---------- */
+const dayDiff = (a, b) => Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 864e5);
+const SKIP = new Set(['stress', 'travel', 'sick', 'meds']);
+function cycleStats(list, todayStr) {
+  const l = list.filter(p => p.start).sort((a, b) => a.start.localeCompare(b.start));
+  const lens = [];
+  for (let i = 1; i < l.length; i++) { const d = dayDiff(l[i - 1].start, l[i].start); if (d >= 15 && d <= 60 && !(l[i - 1].tags || []).some(t => SKIP.has(t))) lens.push(d); }
+  const recent = lens.slice(-6), avg = recent.length ? Math.round(recent.reduce((a, b) => a + b, 0) / recent.length) : 28;
+  const sd = recent.length > 1 ? Math.sqrt(recent.reduce((a, b) => a + (b - avg) ** 2, 0) / recent.length) : 0;
+  const pl = l.filter(p => p.end).map(p => dayDiff(p.start, p.end) + 1).filter(n => n > 0 && n < 15).slice(-6);
+  const plen = pl.length ? Math.round(pl.reduce((a, b) => a + b, 0) / pl.length) : 5;
+  const last = l[l.length - 1] || null;
+  let inP = false;
+  if (last) { const d = dayDiff(last.start, todayStr); inP = d >= 0 && (last.end ? todayStr <= last.end : d < plen + 3); }
+  const spread = Math.max(1, Math.min(4, Math.round(sd)));
+  const next = last ? {from: addDays(last.start, avg - spread), to: addDays(last.start, avg + spread)} : null;
+  return {avg, plen, last, inP, next};
+}
+const shareInPeriod = (s, t) => s.lastStart && dayDiff(s.lastStart, t) >= 0 && (s.lastEnd ? t <= s.lastEnd : dayDiff(s.lastStart, t) < (s.plen || 5) + 3);
+
+exports.onCycleShare = onDocumentWritten('cycle/{p}', async ev => {
+  const p = ev.params.p;
+  if (p !== 'a' && p !== 'b') return;
+  const b = ev.data.before.exists ? ev.data.before.data() : null;
+  const a = ev.data.after.exists ? ev.data.after.data() : null;
+  if (!a || a.level === 'off' || !a.lastStart || (b && b.lastStart === a.lastStart) || a.lastEnd) return;
+  const c = await cfg(), t = local(new Date(), c.tz || DEF.tz).date;
+  if (dayDiff(a.lastStart, t) > 2) return;
+  await to([other(p)], 'cycle', {title: nm(c, p) + "'s period started 🫶", body: a.helps ? ('What helps: ' + a.helps).slice(0, 140) : 'A gentle few days ahead.', tag: 'cycle-' + p, url: '/?tab=cycle'});
+});
+
+exports.onWish = onDocumentWritten('wishes/{id}', async ev => {
+  const b = ev.data.before.exists ? ev.data.before.data() : null;
+  const a = ev.data.after.exists ? ev.data.after.data() : null;
+  if (!a || (a.from !== 'a' && a.from !== 'b')) return;
+  const c = await cfg(), list = [...(a.dont || []), ...(a.please || [])].join(' · ') + (a.note ? ' · ' + a.note : '');
+  if (!b) await to([other(a.from)], 'wish', {title: nm(c, a.from) + ' asks for today', body: list, tag: 'wish-' + ev.params.id, url: '/?tab=day'});
+  else if (a.ack && !b.ack) await to([a.from], 'wish', {title: nm(c, other(a.from)) + ' is on it 👍', body: list, tag: 'wish-' + ev.params.id, url: '/?tab=day'});
+});
+
 function local(date, tz) {
   const f = new Intl.DateTimeFormat('en-CA', {timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).formatToParts(date);
   const g = k => f.find(x => x.type === k).value;
@@ -156,6 +196,20 @@ exports.reminders = onSchedule({schedule: 'every 5 minutes', timeZone: 'Europe/T
 
   const stRef = db.doc('notifier/state');
   const st = (await stRef.get()).data() || {};
+  const trackers = (await db.collection('users').where('cycleOn', '==', true).get()).docs;
+  const statsFor = async u => cycleStats((await u.ref.collection('periods').get()).docs.map(d => d.data()), now.date);
+
+  // Evening: on period days (and the day or two before), a gentle reminder to check in if she has not yet.
+  if (now.hm >= '20:00' && st.evening !== now.date) {
+    await stRef.set({evening: now.date}, {merge: true});
+    if (now.hm <= '22:30') for (const u of trackers) {
+      const x = await statsFor(u), near = x.next && now.date >= addDays(x.next.from, -1) && now.date <= x.next.to;
+      if (!x.inP && !near) continue;
+      if ((await u.ref.collection('cdays').doc(now.date).get()).exists) continue;
+      await push((d, id) => id === u.id, 'cycleLog', {title: 'How are you today? 🐾', body: 'Two sliders and an Agla. Ten seconds.', tag: 'cyclelog', url: '/?tab=cycle'});
+    }
+  }
+
   if (now.hm >= '08:00' && st.morning !== now.date) {
     await stRef.set({morning: now.date}, {merge: true});
     if (now.hm > '11:00') return; // first run late in the day: skip, start tomorrow
@@ -169,6 +223,19 @@ exports.reminders = onSchedule({schedule: 'every 5 minutes', timeZone: 'Europe/T
       const parts = [planned ? planned + ' planned today' : null, dueToday ? dueToday + ' due today' : null, dueTom ? dueTom + ' due tomorrow' : null, late ? late + ' left from earlier' : null].filter(Boolean);
       if (!parts.length) continue;
       await to([p], 'morning', {title: 'Good morning, ' + nm(c, p), body: parts.join(' · '), tag: 'morning', url: '/?tab=day'});
+    }
+    // Her own reminder when the period may start, and a heads-up for the partner two days before.
+    for (const u of trackers) {
+      const x = await statsFor(u);
+      if (x.next && !x.inP && now.date >= addDays(x.next.from, -1) && now.date <= addDays(x.next.to, 3)) {
+        await push((d, id) => id === u.id, 'cycleStart', {title: 'Your period may start around now', body: 'Tap Started in Kahekesi when it does.', tag: 'cyclestart', url: '/?tab=cycle'});
+      }
+    }
+    for (const p of ['a', 'b']) {
+      const sd = (await db.doc('cycle/' + p).get()).data();
+      if (!sd || sd.level === 'off' || !sd.next || shareInPeriod(sd, now.date)) continue;
+      if (dayDiff(now.date, sd.next.from) !== 2) continue;
+      await to([other(p)], 'cycle', {title: 'Heads-up: ' + nm(c, p) + "'s period may start in a few days", body: sd.helps ? ('What helps: ' + sd.helps).slice(0, 140) : 'A gentle week may be coming 🫶', tag: 'cycle-' + p, url: '/?tab=cycle'});
     }
   }
 });

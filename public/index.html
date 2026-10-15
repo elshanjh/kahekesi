@@ -76,7 +76,7 @@ body{--them:var(--b);--them-soft:var(--b-soft)} body[data-me="b"]{--them:var(--a
 .fbtn{flex:none;margin-left:auto;font-weight:700;font-size:14px;padding:7px 13px;border-radius:999px;background:var(--me);color:var(--on);font-variant-numeric:tabular-nums}
 .brand .fbtn+.me{margin-left:0}
 .brand .fbtn+.fbtn{margin-left:0}
-.fbtn.brk{background:var(--both)}.fbtn.brk.over{background:var(--warn)}
+.fbtn.brk{background:var(--both)}.fbtn.wsh{background:var(--surface);border:1px solid var(--line);padding:6px 10px}.fbtn.brk.over{background:var(--warn)}
 @media (max-width:420px){.fbtn .bl{display:none}.fbtn{padding:7px 11px}.brand h1{display:none}.brand{gap:8px}.brand .face{margin-right:auto}}
 .fl{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--muted)}
 .step{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px 4px 4px 12px;color:var(--ink);font-weight:500;font-size:15px}
@@ -334,6 +334,19 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .tqty{flex:none;width:52px;min-height:38px;padding:6px 8px;text-align:center}
 .tprice{flex:none;width:76px;min-height:38px;padding:6px 10px;text-align:right}
 .bdate{flex:none;width:auto;min-height:36px;padding:5px 8px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-size:14px;color:var(--ink)}
+.cycard{display:flex;flex-direction:column;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}
+.cyslide{display:flex;align-items:center;gap:10px;font-size:20px}.cyslide input{flex:1;accent-color:var(--me);height:28px}
+.cyaglas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cymore summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:14px;padding:4px 0}.cymore[open]{display:flex;flex-direction:column;gap:12px}
+.cyfeel{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px}
+.cyart svg{width:120px;height:auto;display:block}.cyfeelr{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.cybar{display:flex;align-items:center;gap:8px;font-size:16px}.cytrack{flex:1;height:8px;border-radius:9px;background:var(--sunk);position:relative}
+.cytrack i{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:var(--both);transform:translate(-50%,-50%);box-shadow:0 0 0 3px var(--surface)}
+.dayc.cyp{background:#d9546a;color:#fff}.dayc.cypr{background:transparent;box-shadow:inset 0 0 0 2px #d9546a}
+.key i.cyk{background:#d9546a;border-color:#d9546a}.key i.cyk.pr{background:transparent;border-color:#d9546a}
+.chip.cytag{padding:4px 10px;font-size:12.5px}
+.cyban{flex-direction:column;align-items:stretch}.cyban .wrow{display:flex;align-items:center;gap:8px;font-size:14px}.cyban .wrow span:first-child{flex:1;min-width:0}
+.cyban>.btn{align-self:flex-start}
 .privtog{align-self:flex-start;display:flex;flex-direction:column;align-items:flex-start;gap:1px;font-size:14px;font-weight:600;color:var(--muted);padding:2px 0}
 .privtog small{font-size:12px;font-weight:500;opacity:.8}
 .privtog[aria-pressed="true"]{color:var(--ink)}
@@ -347,7 +360,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
   <div class="top">
     <div class="brand">
       <span class="face" id="face" aria-hidden="true"></span><h1>Kahekesi</h1><small id="mood">the two of us</small>
-      <button class="fbtn brk" id="breakBtn" aria-label="Take a break">☕<span class="bl"> Break</span></button><button class="fbtn" id="focusBtn" aria-label="Focus on one thing">Focus</button><button class="me" id="meBtn" aria-label="Settings"><i class="dot" id="meDot"></i><span id="meName">…</span></button>
+      <button class="fbtn wsh" id="wishBtn" aria-label="Ask for something today">🫶</button><button class="fbtn brk" id="breakBtn" aria-label="Take a break">☕<span class="bl"> Break</span></button><button class="fbtn" id="focusBtn" aria-label="Focus on one thing">Focus</button><button class="me" id="meBtn" aria-label="Settings"><i class="dot" id="meDot"></i><span id="meName">…</span></button>
     </div>
     <form class="capture" id="capForm">
       <input id="capInput" autocomplete="off" enterkeyhint="done" aria-label="New item" placeholder="Something on your mind? Drop it here">
@@ -447,6 +460,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
     <div class="acts"><button class="btn" id="setSave">Save</button><button class="btn ghost" data-close>Cancel</button></div>
   </div>
 
+  <div class="sheet" id="wishSheet" hidden><div id="wishBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
   <div class="sheet" id="tripSheet" hidden><div id="tripBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
   <div class="sheet" id="breakSheet" hidden><div id="breakBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
   <div class="sheet focus" id="focusSheet" hidden><div id="focusBody" style="display:flex;flex-direction:column;gap:16px;flex:1"></div></div>
@@ -501,7 +515,7 @@ const span=it=>it.start?(it.start+(it.end?'–'+it.end:'')):'';
 
 /* ---------- state ---------- */
 const DEF={nameA:'Elshan',nameB:'Ayan',goalTitle:'',goalTarget:300,goalSince:0};
-const S={items:{},rewards:{},reds:{},status:{},breaks:{},trips:{},cfg:Object.assign({},DEF)};
+const S={items:{},rewards:{},reds:{},status:{},breaks:{},trips:{},periods:{},cdays:{},share:{},wishes:{},ccfg:null,cfg:Object.assign({},DEF)};
 const stored=ls.get('me');
 const ui={tab:new URLSearchParams(location.search).get('tab')||'day',pose:Math.floor(Math.random()*1e6),calOpen:false,catsOpen:false,low:ls.get('low')==='1',
   me:stored==='b'?'b':'a',meKnown:stored==='a'||stored==='b',day:today(),month:today().slice(0,7),filter:'all',cat:'',shop:false,review:false,editId:null,sound:ls.get('sound')!=='off'};
@@ -517,7 +531,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 
 /* ---------- storage ---------- */
 function fail(e){toast(e&&e.code==='invalid_argument'?'You have view-only access to this page.':e&&e.code==='quota_exceeded'?'Storage is full. Delete some old items.':'Could not save. Check your connection and try again.');}
-const KEY={items:'items',rewards:'rewards',redemptions:'reds',status:'status',breaks:'breaks',trips:'trips'};
+const KEY={items:'items',rewards:'rewards',redemptions:'reds',status:'status',breaks:'breaks',trips:'trips',wishes:'wishes'};
 async function put(coll,id,data){if(db){try{await db.collection(coll).doc(id).set(data)}catch(e){fail(e)}}else{S[KEY[coll]][id]=Object.assign({id},data);render();}}
 async function patch(coll,id,data){if(db){try{await db.collection(coll).doc(id).update(data)}catch(e){fail(e)}}else{Object.assign(S[KEY[coll]][id],data);render();}}
 async function del(coll,id){if(db){try{await db.collection(coll).doc(id).delete()}catch(e){fail(e)}}else{delete S[KEY[coll]][id];render();}}
@@ -724,6 +738,156 @@ function drawBreak(){const box=$('breakBody'),mb=myBreak(),o=other(ui.me);
     el('button',{class:'btn ghost small',style:'align-self:flex-start',text:'Already had it? Log '+BUI.mins+' min',onclick:logBreak}),
     mine.length?el('p',{class:'fmeta',style:'margin:0',text:'Today so far: '+mine.length+(mine.length===1?' break':' breaks')+', '+fmtMins(mine.reduce((n,b)=>n+bmins(b),0))}):null].filter(Boolean));}
 $('breakBtn').onclick=openBreak;
+
+/* ---------- cycle tracking ----------
+   Her private data (periods, daily check-ins, settings) lives under users/<her uid>/, which the rules let only her read.
+   The partner only sees cycle/<a|b>: a summary she controls (off / dates / dates + how she feels). No points here. */
+const AGLAS=[['loaf','🍞','Loaf mode','loaf',''],['grumpy','😾','Grumpy','sit','judging'],['zoomies','🌀','Zoomies','play','happy'],['cuddly','🫶','Cuddly','sit','happy'],['alone','🙈','Leave me alone','box',''],['sleepy','😴','Sleepy','sleep','sleepy']];
+const SYMS=['Cramps','Headache','Bloating','Back pain','Tender','Tired','Cravings','Spots','Nausea'];
+const WORDS=['Calm','Foggy','Sensitive','Restless','Teary','Irritable','Content','Anxious','Strong'];
+const TAGS=[['stress','Stressful month'],['travel','Travel'],['sick','Sick'],['meds','New meds']];
+const CYSKIP=new Set(['stress','travel','sick','meds']);
+const dDiff=(a,b)=>Math.round((new Date(b+'T12:00')-new Date(a+'T12:00'))/864e5);
+const ccfg=()=>S.ccfg||{};
+const noId=p=>{const r=Object.assign({},p);delete r.id;return r;};
+let cyLoaded={p:false,c:false,d:false};
+const cyPath=n=>'users/'+window.kkUid+'/'+n;
+function cput(n,id,d){if(db&&window.kkUid)return db.collection(cyPath(n)).doc(id).set(d).catch(fail);const m=n==='cyclecfg'?null:S[n];if(m){m[id]=Object.assign({id},d);}else S.ccfg=d;render();}
+function cdel(n,id){if(db&&window.kkUid)return db.collection(cyPath(n)).doc(id).delete().catch(fail);delete S[n][id];render();}
+function subCycle(){if(!window.kkUid)return;
+  const sn=(n,key)=>db.collection(cyPath(n)).onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=Object.assign({id:d.id},d.data());S[n]=m;cyLoaded[key]=true;render();},()=>{});
+  sn('periods','p');sn('cdays','d');
+  db.collection(cyPath('cyclecfg')).onSnapshot(snap=>{const d=snap.docs.find(x=>x.id==='main');S.ccfg=d?d.data():{};cyLoaded.c=true;render();},()=>{});
+  db.collection('cycle').onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=d.data();S.share=m;render();},()=>{});}
+function saveCcfg(p){const n=Object.assign({},ccfg(),p);S.ccfg=n;cput('cyclecfg','main',n);
+  if(db&&window.kkUid&&'on' in p)db.doc('users/'+window.kkUid).set({cycleOn:!!n.on},{merge:true}).catch(()=>{});render();}
+function cycleStats(periods){const l=Object.values(periods).filter(p=>p.start).sort((a,b)=>a.start.localeCompare(b.start)),lens=[];
+  for(let i=1;i<l.length;i++){const d=dDiff(l[i-1].start,l[i].start);if(d>=15&&d<=60&&!(l[i-1].tags||[]).some(t=>CYSKIP.has(t)))lens.push(d);}
+  const r=lens.slice(-6),avg=r.length?Math.round(r.reduce((a,b)=>a+b,0)/r.length):28,sd=r.length>1?Math.sqrt(r.reduce((a,b)=>a+(b-avg)**2,0)/r.length):0;
+  const pl=l.filter(p=>p.end).map(p=>dDiff(p.start,p.end)+1).filter(n=>n>0&&n<15).slice(-6),plen=pl.length?Math.round(pl.reduce((a,b)=>a+b,0)/pl.length):5;
+  const last=l[l.length-1]||null,t=today();let inP=false,pday=0;
+  if(last){const d=dDiff(last.start,t);if(d>=0&&(last.end?t<=last.end:d<plen+3)){inP=true;pday=d+1;}}
+  const sp=Math.max(1,Math.min(4,Math.round(sd)));
+  return {list:l,avg,plen,last,inP,pday,known:r.length,next:last?{from:addDays(last.start,avg-sp),to:addDays(last.start,avg+sp)}:null};}
+// What the partner can see, worked out from the shared summary.
+function shareStatus(sd){if(!sd||!sd.lastStart)return null;const t=today(),d=dDiff(sd.lastStart,t),pl=sd.plen||5;
+  const inP=d>=0&&(sd.lastEnd?t<=sd.lastEnd:d<pl+3);return {inP,pday:d+1,plen:pl,next:sd.next,soon:sd.next&&!inP?dDiff(t,sd.next.from):null};}
+const shortDay=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
+function cycleLine(st,who){if(!st)return '';const n=who?name(who)+"'s":'Your';
+  if(st.inP)return (who?name(who)+' is on':'You are on')+' day '+st.pday+' of '+(who?'her':'your')+' period';
+  if(!st.next)return '';const until=dDiff(today(),st.next.from);
+  if(until>0)return n+' next period: likely '+shortDay(st.next.from)+' to '+shortDay(st.next.to)+(until<=7?' (in '+until+(until===1?' day':' days')+')':'');
+  if(today()<=st.next.to)return n+' period may start any day now';
+  return n+' period was expected around '+shortDay(st.next.from)+' and has not started';}
+// Keep the shared summary in step with her data and chosen level.
+let lastShare='';
+function syncShare(){if(!db||!cyLoaded.p||!cyLoaded.c||!cyLoaded.d)return;const c=ccfg();if(!c.on&&!S.share[ui.me])return;
+  const st=cycleStats(S.periods),lvl=c.on?(c.level||'feel'):'off';
+  const d=lvl==='off'?{who:ui.me,level:'off'}:{who:ui.me,level:lvl,lastStart:st.last?st.last.start:null,lastEnd:st.last&&st.last.end||null,avg:st.avg,plen:st.plen,next:st.next,helps:c.helps||'',mood:null};
+  if(lvl==='feel'){const m=S.cdays[today()];if(m&&(m.energy!=null||m.agla))d.mood={date:today(),energy:m.energy??null,feel:m.feel??null,agla:m.agla||null};}
+  const j=JSON.stringify(d);if(j===lastShare)return;lastShare=j;db.doc('cycle/'+ui.me).set(Object.assign(d,{updatedAt:Date.now()})).catch(()=>{});}
+setInterval(syncShare,60000);
+
+function aglaArt(k,s){const a=AGLAS.find(x=>x[0]===k);if(!a)return null;const w=el('div',{class:'cyart pose '+a[4]});w.innerHTML=pose(a[3],s);return w;}
+function bar(v,l,r){return el('div',{class:'cybar'},el('span',{text:l}),el('div',{class:'cytrack'},el('i',{style:'left:'+Math.max(0,Math.min(100,v))+'%'})),el('span',{text:r}));}
+
+function vCycle(){const o=other(ui.me),sd=S.share[o],c=ccfg(),out=[];
+  if(sd&&sd.level&&sd.level!=='off')out.push(...partnerCycle(o,sd));
+  if(c.on)out.push(...ownCycle());
+  else if(!sd||sd.level==='off')out.push(el('section',{class:'sec'},el('h2',{text:'Cycle'}),el('p',{class:'fmeta',style:'margin:0',text:'Track your period privately. You decide what '+name(o)+' sees: nothing, the dates, or the dates and how you feel.'}),
+    el('button',{class:'btn',style:'align-self:flex-start',text:'Start tracking',onclick:()=>saveCcfg({on:true,level:'feel'})})));
+  return out;}
+
+function partnerCycle(o,sd){const st=shareStatus(sd),m=sd.mood&&sd.mood.date===today()?sd.mood:null,out=[];
+  const card=el('section',{class:'goal'},el('span',{class:'k',text:name(o)+"'s cycle"}),el('h2',{text:cycleLine(st,o)||'No dates yet'}),
+    st&&st.inP?el('span',{class:'fmeta',style:'text-align:left',text:'Usually about '+st.plen+' days.'}):null);
+  out.push(el('div',{class:'sec'},card));
+  if(sd.level==='feel')out.push(el('section',{class:'sec'},el('h2',{text:'How '+name(o)+' feels today'}),
+    m?el('div',{class:'cyfeel'},m.agla?aglaArt(m.agla,'pc'):null,el('div',{class:'cyfeelr'},m.agla?el('b',{text:(AGLAS.find(x=>x[0]===m.agla)||[])[1]+' '+(AGLAS.find(x=>x[0]===m.agla)||[])[2]}):null,
+      m.energy!=null?bar(m.energy,'🪫','⚡'):null,m.feel!=null?bar(m.feel,'🌧️','☀️'):null)):el('p',{class:'empty',text:'No check-in today yet.'})));
+  if(sd.helps)out.push(el('section',{class:'sec'},el('h2',{text:'What helps '+name(o)}),el('p',{class:'note',style:'white-space:pre-wrap;margin:0',text:sd.helps})));
+  if(st&&(st.inP||(st.soon!=null&&st.soon<=3)))out.push(el('div',{class:'tools'},
+    el('button',{class:'chip',text:'🛒 Pads and painkillers on the list',onclick:()=>{for(const t of ['Pads','Painkillers'])if(!vis().some(it=>it.kind==='shopping'&&!it.done&&it.text.toLowerCase()===t.toLowerCase()))put('items',uid(),fresh(blank({text:t,kind:'shopping',owner:'both',points:5})));toast('Added to shopping.');}}),
+    el('button',{class:'chip',text:"🍲 I'll cook today",onclick:()=>{put('items',uid(),fresh(blank({text:'Cook dinner',kind:'todo',owner:ui.me,date:today(),part:'evening'})));toast('Added to your Schedule today.');}})));
+  return out;}
+
+let cyDay=null,cyDraft=null;
+function ownCycle(){const c=ccfg(),st=cycleStats(S.periods),o=other(ui.me),out=[],t=today(),day=cyDay||t;
+  // status
+  const pick=(label,fn)=>el('label',{class:'dchip'},label,el('input',{type:'date',max:t,'aria-label':label,onchange:e=>e.target.value&&fn(e.target.value)}));
+  const startOn=d=>{const lp=st.list.filter(p=>p.start<d).pop();if(lp&&!lp.end){const e=addDays(lp.start,st.plen-1);cput('periods',lp.id,Object.assign(noId(lp),{end:e<d?e:addDays(d,-1)}));}
+    cput('periods',uid(),{start:d,end:null,tags:[],createdAt:Date.now()});cheer('Noted. Be gentle with yourself today.',true);};
+  const endOn=d=>{if(st.last){const e=d<st.last.start?st.last.start:d;cput('periods',st.last.id,Object.assign(noId(st.last),{end:e}));toast('Period ended '+fmtDay(e).toLowerCase()+'.');}};
+  out.push(el('div',{class:'sec'},el('section',{class:'goal'},el('span',{class:'k',text:'Your cycle'}),el('h2',{text:cycleLine(st)||'Log your last period to start'}),
+    el('span',{class:'fmeta',style:'text-align:left',text:st.known?'Average cycle '+st.avg+' days · period about '+st.plen+' days':'Predictions get better after two periods.'}),
+    el('div',{class:'r',style:'display:flex;gap:8px;flex-wrap:wrap'},st.inP?[el('button',{class:'btn small',text:'Period ended today',onclick:()=>endOn(t)}),pick('Ended another day',endOn)]:
+      [el('button',{class:'btn small',text:'Period started today',onclick:()=>startOn(t)}),pick('Started another day',startOn)]))));
+  // check-in
+  const saved=S.cdays[day]||{},dr=cyDraft&&cyDraft.day===day?cyDraft:(cyDraft={day,energy:saved.energy??50,feel:saved.feel??50,agla:saved.agla||null,words:(saved.words||[]).slice(),syms:(saved.syms||[]).slice(),note:saved.note||''});
+  const slider=(k,l,r,lab)=>el('label',{class:'f'},lab,el('div',{class:'cyslide'},el('span',{text:l}),el('input',{type:'range',min:'0',max:'100',value:String(dr[k]),'aria-label':lab,oninput:e=>dr[k]=Number(e.target.value)}),el('span',{text:r})));
+  const chipSet=(list,key,custom)=>el('div',{class:'chips'},[...new Set([...list,...(c[custom]||[]),...dr[key]])].map(w=>el('button',{type:'button',class:'chip','aria-pressed':String(dr[key].includes(w)),text:w,onclick:e=>{const i=dr[key].indexOf(w);if(i<0)dr[key].push(w);else dr[key].splice(i,1);e.currentTarget.setAttribute('aria-pressed',String(i<0));}})),
+    el('button',{type:'button',class:'chip',text:'+ own',onclick:()=>{const v=(prompt('Add your own')||'').trim().slice(0,24);if(!v)return;dr[key].push(v);saveCcfg({[custom]:[...new Set([...(c[custom]||[]),v])]});}}));
+  const shareNote=c.level==='feel'?name(o)+' sees your energy, feeling and Agla for today. Words, body and note stay private.':c.level==='dates'?name(o)+' sees only your dates.':'Nothing is shared with '+name(o)+'.';
+  out.push(el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:day===t?'Today':fmtDay(day)}),day!==t?el('button',{class:'btn ghost small',text:'Back to today',onclick:()=>{cyDay=null;cyDraft=null;render();}}):el('span',{text:saved.at?'saved':''})),
+    el('div',{class:'cycard'},slider('energy','🪫','⚡','Energy'),slider('feel','🌧️','☀️','Feeling'),
+      el('div',{class:'fl'},'Which Agla are you?',el('div',{class:'cyaglas'},AGLAS.map(a=>el('button',{type:'button',class:'bkind','aria-pressed':String(dr.agla===a[0]),onclick:e=>{dr.agla=dr.agla===a[0]?null:a[0];for(const b of e.currentTarget.parentNode.children)b.setAttribute('aria-pressed','false');if(dr.agla)e.currentTarget.setAttribute('aria-pressed','true');}},el('b',{text:a[1]}),a[2])))),
+      el('details',{class:'cymore',open:ui.cyMore||null,ontoggle:e=>{ui.cyMore=e.currentTarget.open;}},el('summary',{text:'More, only for you: words, body, a note'}),
+        el('div',{class:'fl'},'Words',chipSet(WORDS,'words','myWords')),el('div',{class:'fl'},'Body',chipSet(SYMS,'syms','mySyms')),
+        el('input',{class:'field',maxlength:'200',placeholder:'One line about today','aria-label':'Note',value:dr.note,oninput:e=>dr.note=e.target.value})),
+      el('p',{class:'fmeta',style:'margin:0;text-align:left',text:shareNote}),
+      el('button',{class:'btn',text:'Save',onclick:()=>{cput('cdays',day,{energy:dr.energy,feel:dr.feel,agla:dr.agla,words:dr.words,syms:dr.syms,note:dr.note.trim(),at:Date.now()});cyDraft=null;toast('Saved.');}}))));
+  // calendar
+  out.push(cyCalendar(st));
+  // sharing
+  out.push(el('section',{class:'sec'},el('h2',{text:'What '+name(o)+' sees'}),
+    el('div',{class:'seg'},[['off','Nothing'],['dates','Dates'],['feel','Dates + how I feel']].map(([v,l])=>el('button',{'aria-pressed':String((c.level||'feel')===v),text:l,onclick:()=>saveCcfg({level:v})}))),
+    el('label',{class:'f'},'What helps me ('+name(o)+' sees this unless sharing is off)',el('textarea',{class:'field',maxlength:'400',placeholder:'Hot water bottle, dark chocolate, hugs yes, questions no…',onchange:e=>saveCcfg({helps:e.target.value.trim()})},c.helps||''))));
+  // history
+  const hist=st.list.slice().reverse();
+  out.push(el('section',{class:'sec'},el('h2',{text:'Past periods'}),hist.length?el('div',{class:'blog'},more(hist,4,'cyAll').map((p,i)=>{const nx=hist[i-1],len=nx?dDiff(p.start,nx.start):null;
+    return el('div',{class:'rw',style:'flex-wrap:wrap'},el('span',{},shortDay(p.start)+(p.end?' to '+shortDay(p.end):p===st.last?' (ongoing)':''),el('small',{style:'display:block;color:var(--muted);font-size:12.5px',text:[p.end?(dDiff(p.start,p.end)+1)+' days':null,len?'cycle '+len+' days':null].filter(Boolean).join(' · ')})),
+      el('button',{class:'x','aria-label':'Delete this period',text:'×',onclick:e=>twoTap(e.currentTarget,()=>cdel('periods',p.id))}),
+      el('div',{class:'chips',style:'flex-basis:100%'},TAGS.map(([k,l])=>el('button',{class:'chip cytag','aria-pressed':String((p.tags||[]).includes(k)),text:l,onclick:()=>{const tg=new Set(p.tags||[]);tg.has(k)?tg.delete(k):tg.add(k);cput('periods',p.id,Object.assign(noId(p),{tags:[...tg]}));}}))));})):
+    el('p',{class:'empty',text:'No periods logged yet. Use "Started another day" above to add your last one.'}),moreBtn(hist,4,'cyAll'),
+    el('p',{class:'fmeta',style:'margin:6px 0 0;text-align:left',text:'Tag a month as stressful, travel, sick or new meds and it will not skew your average. Predictions are estimates from your own history, not a medical or contraception tool.'}),
+    el('button',{class:'btn ghost small danger',style:'align-self:flex-start',text:'Stop tracking',onclick:e=>twoTap(e.currentTarget,()=>saveCcfg({on:false}))})));
+  return out;}
+function cyCalendar(st){const t=today();ui.cyMonth=ui.cyMonth||t.slice(0,7);const [y,m]=ui.cyMonth.split('-').map(Number),off=(new Date(y,m-1,1).getDay()+6)%7,len=new Date(y,m,0).getDate(),cells=Math.ceil((off+len)/7)*7,start=addDays(ui.cyMonth+'-01',-off);
+  const inReal=d=>st.list.some(p=>d>=p.start&&d<=(p.end||(p===st.last&&st.inP?t:addDays(p.start,st.plen-1))));
+  const pred=d=>{if(!st.next||d<t)return false;for(let k=0;k<4;k++){const f=addDays(st.next.from,k*st.avg),e=addDays(st.next.from,k*st.avg+st.plen-1);if(d>=f&&d<=e)return true;}return false;};
+  const go=n=>{ui.cyMonth=ymd(new Date(y,m-1+n,1)).slice(0,7);render();};
+  const grid=el('div',{class:'month'},['Mo','Tu','We','Th','Fr','Sa','Su'].map(w=>el('span',{class:'wd',text:w})));
+  for(let i=0;i<cells;i++){const d=addDays(start,i),r=inReal(d),pr=!r&&pred(d),lg=!!S.cdays[d];
+    grid.append(el('button',{class:'dayc'+(d.slice(0,7)!==ui.cyMonth?' out':'')+(d===t?' today':'')+(r?' cyp':pr?' cypr':''),'aria-label':fmtDay(d)+(r?', period':pr?', predicted':''),disabled:d>t,
+      onclick:()=>{cyDay=d===t?null:d;cyDraft=null;render();window.scrollTo(0,0);}},String(Number(d.slice(8))),el('span',{class:'dots'},lg?el('i'):null)));}
+  return el('section',{class:'sec'},el('div',{class:'mhead'},el('button',{class:'btn ghost','aria-label':'Previous month',text:'‹',onclick:()=>go(-1)}),
+    el('h2',{style:'font-size:17px;text-align:center',text:new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})}),el('button',{class:'btn ghost','aria-label':'Next month',text:'›',onclick:()=>go(1)})),
+    grid,el('div',{class:'key'},el('span',{},el('i',{class:'cyk'}),'Period'),el('span',{},el('i',{class:'cyk pr'}),'Likely'),el('span',{text:'• checked in · tap a day to log it'})));}
+
+/* ---------- "Today I'd like…": small requests to each other, for today only ---------- */
+const WDONT=['🎵 No singing','🙅 No touching','🤐 No teasing or jokes','🙊 Not too many questions','🔇 Keep it quiet'];
+const WPLS=['🫂 Hugs please','🫖 Make me tea','🍫 Bring me chocolate','🍲 Cook today','💊 Get painkillers','🧸 Hot water bottle','🛋️ Some time alone','🎬 Watch something together'];
+const WD={dont:[],please:[],note:''};
+const wishesToday=(from)=>Object.values(S.wishes).filter(w=>w.day===today()&&w.from===from).sort((a,b)=>a.at-b.at);
+function openWish(){WD.dont=[];WD.please=[];WD.note='';show('wishSheet');drawWish();}
+function drawWish(){const o=other(ui.me),mine=wishesToday(ui.me),cw=ccfg();
+  const grp=(title,list,key,customKey)=>el('div',{class:'fl'},title,el('div',{class:'chips'},[...list,...(cw[customKey]||[])].map(w=>el('button',{type:'button',class:'chip','aria-pressed':String(WD[key].includes(w)),text:w,onclick:()=>{const i=WD[key].indexOf(w);i<0?WD[key].push(w):WD[key].splice(i,1);drawWish();}})),
+    el('button',{type:'button',class:'chip',text:'+ own',onclick:()=>{const v=(prompt(key==='dont'?'Please don\'t…':'Please…')||'').trim().slice(0,40);if(!v)return;const t='✨ '+v;WD[key].push(t);saveCcfg({[customKey]:[...new Set([...(cw[customKey]||[]),t])].slice(-8)});drawWish();}})));
+  $('wishBody').replaceChildren(...[el('h2',{text:"Today I'd like…"}),el('p',{class:'fmeta',style:'margin:0',text:name(o)+' gets a notification. It is just for today.'}),
+    grp('Please don\'t',WDONT,'dont','myDont'),grp('Please',WPLS,'please','myPls'),
+    el('input',{class:'field',maxlength:'120',placeholder:'Anything else, in your words',value:WD.note,oninput:e=>WD.note=e.target.value}),
+    mine.length?el('div',{class:'fl'},'Already sent today',...mine.map(w=>el('div',{class:'step'},el('span',{text:[...w.dont,...w.please].concat(w.note?[w.note]:[]).join(' · ')}),el('small',{style:'flex:none;color:var(--muted)',text:w.ack?'👍 '+name(o)+' is on it':'sent'}),
+      el('button',{type:'button',class:'x','aria-label':'Take back',text:'×',onclick:()=>{del('wishes',w.id);setTimeout(drawWish,50);}})))):null,
+    el('div',{class:'acts'},el('button',{class:'btn',text:'Send to '+name(o),onclick:()=>{if(!WD.dont.length&&!WD.please.length&&!WD.note.trim()){toast('Pick something first.');return;}
+      put('wishes',uid(),{from:ui.me,to:o,day:today(),dont:WD.dont.slice(),please:WD.please.slice(),note:WD.note.trim(),at:Date.now(),ack:null});hide();cheer('Sent to '+name(o)+'.',true);}}),el('button',{class:'btn ghost',text:'Cancel',onclick:hide}))].filter(Boolean));}
+$('wishBtn').onclick=openWish;
+// Banner on the Schedule: the other person's wishes for today and, if shared, their cycle status.
+function cycleBanner(){const o=other(ui.me),ws=wishesToday(o),sd=S.share[o],st=sd&&sd.level!=='off'?shareStatus(sd):null,show=st&&(st.inP||(st.soon!=null&&st.soon<=3&&st.soon>=0));
+  const m=sd&&sd.level==='feel'&&sd.mood&&sd.mood.date===today()?sd.mood:null,ag=m&&m.agla&&AGLAS.find(x=>x[0]===m.agla);
+  if(!ws.length&&!show&&!ag)return null;
+  return el('div',{class:'note with cyban'},el('p',{},el('strong',{text:'🫶 '+name(o)+' today'}),show?' · '+cycleLine(st,o).replace(name(o)+"'s ",'').replace(name(o)+' is on ','').replace('her period','period'):'',ag?' · '+ag[1]+' '+ag[2]:''),
+    ...ws.map(w=>el('div',{class:'wrow'},el('span',{text:[...w.dont,...w.please].concat(w.note?[w.note]:[]).join(' · ')}),w.ack?el('span',{class:'pill ok',text:'👍 on it'}):el('button',{class:'btn small',text:'On it 👍',onclick:()=>patch('wishes',w.id,{ack:Date.now()})}))),
+    el('button',{class:'btn ghost small',text:'More',onclick:()=>go('cycle')}));}
 // Your own breaks on your Schedule day. The partner's never show here; theirs are on Activity if they shared them.
 function myBreaks(day){const l=Object.values(S.breaks).filter(b=>b.who===ui.me&&ymd(new Date(b.start))===day).sort((x,y)=>x.start-y.start);
   if(!l.length)return null;
@@ -1061,7 +1225,7 @@ function vDay(){
   const quick=el('div',{class:'tools'},el('button',{class:'chip','aria-pressed':String(ui.day===t),text:'Today',onclick:jump(t)}),el('button',{class:'chip','aria-pressed':String(ui.day===tm),text:'Tomorrow',onclick:jump(tm)}),
     el('button',{class:'chip','aria-pressed':String(ui.calOpen),text:ui.calOpen?'Hide calendar':'Pick from calendar',onclick:()=>{ui.calOpen=!ui.calOpen;ui.month=ui.day.slice(0,7);render();}}),
     el('button',{class:'chip','aria-pressed':String(ui.low),text:'Low energy',onclick:()=>{ui.low=!ui.low;ls.set('low',ui.low?'1':'0');render();}}));
-  const out=[nav,filterSeg(),quick];
+  const out=[cycleBanner(),nav,filterSeg(),quick];
   if(ui.calOpen){
     const [y,m]=ui.month.split('-').map(Number),off=(new Date(y,m-1,1).getDay()+6)%7,len=new Date(y,m,0).getDate(),cells=Math.ceil((off+len)/7)*7,start=addDays(ui.month+'-01',-off);
     const marks={};for(const it of vis())if(!it.done&&ownerFilter(it))for(const d of [it.date,it.due])if(d){const k=marks[d]||(marks[d]={});if(it.owner==='both')k.t=1;else k.m=1;}
@@ -1138,7 +1302,7 @@ function twoTap(btn,fn){if(btn.dataset.sure){fn();return;}btn.dataset.sure='1';c
   setTimeout(()=>{if(btn.isConnected){delete btn.dataset.sure;btn.textContent=old;if(btn.classList.contains('x'))btn.classList.remove('danger');}},2500);}
 
 /* ---------- render ---------- */
-const VIEWS={inbox:['Inbox','Something on your mind? Drop it here'],day:['Schedule',''],todo:['To-dos','New to-do, then set the details…'],shopping:['Shopping','Add to the shopping list…'],idea:['Ideas','Park an idea…'],rewards:['Rewards','Something on your mind? Drop it here'],review:['Weekly review','Something on your mind? Drop it here'],activity:['Activity','Something on your mind? Drop it here']};
+const VIEWS={inbox:['Inbox','Something on your mind? Drop it here'],day:['Schedule',''],todo:['To-dos','New to-do, then set the details…'],shopping:['Shopping','Add to the shopping list…'],idea:['Ideas','Park an idea…'],rewards:['Rewards','Something on your mind? Drop it here'],review:['Weekly review','Something on your mind? Drop it here'],cycle:['Cycle','Something on your mind? Drop it here'],activity:['Activity','Something on your mind? Drop it here']};
 const told=new Set();
 function go(id){ui.tab=id;ls.set('tab',id);closeMenu();window.scrollTo(0,0);render();}
 function closeMenu(){$('side').classList.remove('open');$('scrim').hidden=true;}
@@ -1163,7 +1327,7 @@ function render(){
   $('nav').replaceChildren(
     nb('day','Schedule',cnt.day,null,'main'),nb('inbox','Inbox',cnt.inbox,null,'main'),
     el('h3',{class:'main',text:'Lists'}),nb('todo','To-dos',cnt.todo,null,'main'),nb('shopping','Shopping',cnt.shopping,null,'main'),nb('idea','Ideas',n(i=>i.kind==='idea')),
-    nb('rewards','Rewards',balance(ui.me)+' pts'),nb('activity','Activity',null),nb('review','Weekly review',n(i=>(i.date&&i.date<today())||(i.due&&i.due<today()))),
+    nb('rewards','Rewards',balance(ui.me)+' pts'),nb('cycle',S.share[other(ui.me)]&&S.share[other(ui.me)].level!=='off'&&!(S.ccfg&&S.ccfg.on)?name(other(ui.me))+"'s cycle":'Cycle',null),nb('activity','Activity',null),nb('review','Weekly review',n(i=>(i.date&&i.date<today())||(i.due&&i.due<today()))),
     el('button',{class:'nav grp','aria-expanded':String(showCats),onclick:()=>{ui.catsOpen=!showCats;if(isCat&&showCats)ui.tab='todo';render();}},el('span',{text:'Categories'}),el('b',{text:showCats?'Hide':'Show '+cats().length})),
     ...(showCats?cats().map(c=>nb('cat:'+c,c,n(i=>i.cat===c),hue(c))):[]));
   const tb=(id,label,count)=>el('button',{'aria-current':ui.tab===id?'page':null,onclick:()=>go(id)},el('b',{text:String(count)}),label);
@@ -1175,10 +1339,10 @@ function render(){
     nw.forEach(i=>told.add(i.id));ans.forEach(i=>told.add('a'+i.id));
     if(nw.length)cheer(name(other(ui.me))+(nw.length>1?' has '+nw.length+' requests for you':' asks: '+nw[0].text),true);
     else if(ans.length)cheer(name(other(ui.me))+' accepted: '+ans[0].text,true);}
-  capChips();drawCats();
+  capChips();drawCats();syncShare();
   const focus=document.activeElement&&document.activeElement.id;
   if(ui.tab==='rewards'&&$('rwTitle')&&!draft)draft={t:$('rwTitle').value,c:$('rwCost').value};
-  const t=ui.tab,built=t==='inbox'?vInbox():t==='todo'?vTodo():t==='shopping'?vShop():t==='idea'?vIdea():t==='day'?vDay():t==='review'?vReview():t==='activity'?vActivity():isCat?vCat(cur):vRewards();
+  const t=ui.tab,built=t==='inbox'?vInbox():t==='todo'?vTodo():t==='shopping'?vShop():t==='idea'?vIdea():t==='day'?vDay():t==='review'?vReview():t==='activity'?vActivity():t==='cycle'?vCycle():isCat?vCat(cur):vRewards();
   draft=null;
   $('view').replaceChildren(...built.filter(Boolean));
   if((focus==='rwTitle'||focus==='rwCost'||focus==='shopQ')&&$(focus)){const f=$(focus);f.focus();if(focus==='shopQ')try{f.setSelectionRange(f.value.length,f.value.length)}catch(e){}}
@@ -1270,7 +1434,7 @@ render();
   try{db=await new Promise(r=>{if(window.kkDb!==undefined)r(window.kkDb);else window.addEventListener('kk-db',e=>r(e.detail),{once:true});});}catch(e){db=null;}
   if(!db){$('offNote').hidden=false;return;}
   if(window.kkMe==='a'||window.kkMe==='b'){ui.me=window.kkMe;ui.meKnown=true;ls.set('me',ui.me);}
-  sub('items');sub('rewards');sub('redemptions');sub('status');subBreaks();sub('trips');
+  sub('items');sub('rewards');sub('redemptions');sub('status');subBreaks();sub('trips');sub('wishes');subCycle();
   db.doc('config/main').onSnapshot(s=>{S.cfg=Object.assign({},DEF,s.exists?s.data():{});render();},()=>{});
 })();
 })();
