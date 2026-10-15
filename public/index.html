@@ -894,17 +894,25 @@ function drawWish(){const o=other(ui.me),mine=wishesToday(ui.me),cw=ccfg();
   $('wishBody').replaceChildren(...[el('h2',{text:"Today I'd like…"}),el('p',{class:'fmeta',style:'margin:0',text:name(o)+' gets a notification. It is just for today.'}),
     grp('Please don\'t',WDONT,'dont','myDont'),grp('Please',WPLS,'please','myPls'),
     el('input',{class:'field',maxlength:'120',placeholder:'Anything else, in your words',value:WD.note,oninput:e=>WD.note=e.target.value}),
-    mine.length?el('div',{class:'fl'},'Already sent today',...mine.map(w=>el('div',{class:'step'},el('span',{text:[...w.dont,...w.please].concat(w.note?[w.note]:[]).join(' · ')}),el('small',{style:'flex:none;color:var(--muted)',text:w.ack?'👍 '+name(o)+' is on it':'sent'}),
+    mine.length?el('div',{class:'fl'},'Already sent today',...mine.map(w=>el('div',{class:'step'},el('span',{text:[...w.dont,...w.please].concat(w.note?[w.note]:[]).join(' · ')}),el('small',{style:'flex:none;color:var(--muted)',text:wishTodo(w).length&&wishTodo(w).every(t=>(w.doneItems||[]).includes(t))?'✓ done':w.ack?'👍 on it'+((w.doneItems||[]).length?' · '+(w.doneItems||[]).length+' done':''):'sent'}),
       el('button',{type:'button',class:'x','aria-label':'Take back',text:'×',onclick:()=>{del('wishes',w.id);setTimeout(drawWish,50);}})))):null,
     el('div',{class:'acts'},el('button',{class:'btn',text:'Send to '+name(o),onclick:()=>{if(!WD.dont.length&&!WD.please.length&&!WD.note.trim()){toast('Pick something first.');return;}
       put('wishes',uid(),{from:ui.me,to:o,day:today(),dont:WD.dont.slice(),please:WD.please.slice(),note:WD.note.trim(),at:Date.now(),ack:null});hide();cheer('Sent to '+name(o)+'.',true);}}),el('button',{class:'btn ghost',text:'Cancel',onclick:hide}))].filter(Boolean));}
 $('wishBtn').onclick=openWish;
 // Banner on the Schedule: the other person's wishes for today and, if shared, their cycle status.
-function cycleBanner(){const o=other(ui.me),ws=wishesToday(o),sd=S.share[o],st=sd&&sd.level!=='off'?shareStatus(sd):null,show=st&&(st.inP||(st.soon!=null&&st.soon<=3&&st.soon>=0));
+// One request = "please don't" items (stay all day) + things to do. After "On it", each thing to do gets its own Done.
+const wishTodo=w=>[...(w.please||[]),...(w.note?[w.note]:[])];
+const wishOpen=w=>!w.ack||wishTodo(w).some(t=>!(w.doneItems||[]).includes(t))||(w.dont||[]).length;
+function wishRows(w){const all=[...(w.dont||[]),...wishTodo(w)];
+  if(!w.ack)return [el('div',{class:'wrow'},el('span',{text:all.join(' · ')}),el('button',{class:'btn small',text:'On it 👍',onclick:()=>patch('wishes',w.id,{ack:Date.now()})}))];
+  const rows=[];if((w.dont||[]).length)rows.push(el('div',{class:'wrow'},el('span',{text:w.dont.join(' · ')})));
+  for(const t of wishTodo(w))if(!(w.doneItems||[]).includes(t))rows.push(el('div',{class:'wrow'},el('span',{text:t}),el('button',{class:'btn small',text:'Done ✓',onclick:()=>{patch('wishes',w.id,{doneItems:[...(w.doneItems||[]),t]});cheer('Nice. '+name(w.from)+' will see it is done.');}})));
+  return rows;}
+function cycleBanner(){const o=other(ui.me),ws=wishesToday(o).filter(wishOpen),sd=S.share[o],st=sd&&sd.level!=='off'?shareStatus(sd):null,show=st&&(st.inP||(st.soon!=null&&st.soon<=3&&st.soon>=0));
   const m=sd&&sd.level==='feel'&&sd.mood&&sd.mood.date===today()?sd.mood:null,ag=m&&m.agla&&AGLAS.find(x=>x[0]===m.agla);
   if(!ws.length&&!show&&!ag)return null;
   return el('div',{class:'note with cyban'},el('p',{},el('strong',{text:'🫶 '+name(o)+' today'}),show?' · '+cycleLine(st,o).replace(name(o)+"'s ",'').replace(name(o)+' is on ','').replace('her period','period'):'',ag?' · '+ag[1]+' '+ag[2]:''),
-    ...ws.map(w=>el('div',{class:'wrow'},el('span',{text:[...w.dont,...w.please].concat(w.note?[w.note]:[]).join(' · ')}),w.ack?el('span',{class:'pill ok',text:'👍 on it'}):el('button',{class:'btn small',text:'On it 👍',onclick:()=>patch('wishes',w.id,{ack:Date.now()})}))),
+    ...ws.flatMap(wishRows),
     el('button',{class:'btn ghost small',text:'More',onclick:()=>go('cycle')}));}
 // Your own breaks on your Schedule day. The partner's never show here; theirs are on Activity if they shared them.
 function myBreaks(day){const l=Object.values(S.breaks).filter(b=>b.who===ui.me&&ymd(new Date(b.start))===day).sort((x,y)=>x.start-y.start);

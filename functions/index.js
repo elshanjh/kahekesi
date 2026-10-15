@@ -151,6 +151,10 @@ exports.onWish = onDocumentWritten('wishes/{id}', async ev => {
   const c = await cfg(), list = [...(a.dont || []), ...(a.please || [])].join(' · ') + (a.note ? ' · ' + a.note : '');
   if (!b) await to([other(a.from)], 'wish', {title: nm(c, a.from) + ' asks for today', body: list, tag: 'wish-' + ev.params.id, url: '/?tab=day'});
   else if (a.ack && !b.ack) await to([a.from], 'wish', {title: nm(c, other(a.from)) + ' is on it 👍', body: list, tag: 'wish-' + ev.params.id, url: '/?tab=day'});
+  else {
+    const was = new Set(b.doneItems || []), now = (a.doneItems || []).filter(t => !was.has(t));
+    if (now.length) await to([a.from], 'wish', {title: nm(c, other(a.from)) + ': done ✓', body: now.join(' · '), tag: 'wishdone-' + ev.params.id, url: '/'});
+  }
 });
 
 function local(date, tz) {
