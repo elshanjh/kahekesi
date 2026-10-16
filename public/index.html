@@ -935,12 +935,12 @@ function myBreaks(day){const l=Object.values(S.breaks).filter(b=>b.who===ui.me&&
    On the partner's page their personal tasks stay hidden, only a count shows; private breaks never reach the partner. ---------- */
 function vActivity(){
   const o=other(ui.me),who=ui.actWho===o?o:ui.me,mine=who===ui.me,d=ui.actDay||today(),on=t=>t&&ymd(new Date(t))===d;
-  const done=items().filter(it=>it.done&&it.doneBy===who&&on(it.doneAt));
-  const shown=mine?done:done.filter(it=>it.owner==='both'||it.askedBy===ui.me||it.kind==='shopping'),hiddenN=done.length-shown.length;
+  const done=items().filter(it=>it.done&&it.doneBy===who&&on(it.doneAt)&&it.kind!=='shopping');
+  const shown=mine?done:done.filter(it=>it.owner==='both'||it.askedBy===ui.me),hiddenN=done.length-shown.length;
   const brs=Object.values(S.breaks).filter(b=>b.who===who&&on(b.start));
   const ev=[...shown.map(it=>({t:it.doneAt,e:it.kind==='shopping'?'🛒':'✓',l:(it.kind==='shopping'?'Bought ':'')+it.text,side:pts(it)?'+'+pts(it):'',it:mine&&it.kind!=='shopping'?it:null})),
     ...brs.map(b=>{const k=bkInfo(b);return {t:b.start,e:k.e,l:k.l+(b.private?' 🔒':''),side:b.end?fmtMins(bmins(b)):'now',b};}),
-    ...Object.values(S.trips).filter(t=>t.who===who&&on(t.at)).map(t=>({t:t.at,e:'🧾',l:(t.store||'Shop trip')+' · '+(t.items||[]).length+' items',side:t.total?eur(t.total):''}))].sort((x,y)=>y.t-x.t);
+    ...Object.values(S.trips).filter(t=>t.who===who&&on(t.at)).map(t=>({t:t.at,e:'🧾',l:(t.store||'Shop trip')+' · '+(t.items||[]).length+' items',side:t.total?eur(t.total):'',trip:t.id}))].sort((x,y)=>y.t-x.t);
   const tasks=done.filter(it=>it.kind!=='shopping'),bm=c=>brs.filter(b=>!c||bkInfo(b).c===c).reduce((n,b)=>n+bmins(b),0);
   const seg=el('div',{class:'seg',style:'margin-bottom:12px'},[[ui.me,'You'],[o,name(o)]].map(([p,l])=>el('button',{'aria-pressed':String(who===p),text:l,onclick:()=>{ui.actWho=p;render();}})));
   const nav=el('div',{class:'daynav',style:'margin-bottom:12px'},
@@ -949,7 +949,7 @@ function vActivity(){
   const strip=el('div',{class:'strip',style:'margin-bottom:14px'},el('span',{},el('b',{text:String(tasks.length)}),tasks.length===1?' task done':' tasks done'),
     el('span',{},el('b',{text:String(tasks.reduce((n,it)=>n+pts(it),0))}),' pts'),
     el('span',{},el('b',{text:String(brs.length)}),(brs.length===1?' break':' breaks')+(brs.length?', '+fmtMins(bm())+[['recharge',bm('recharge')],['screens',bm('screen')]].filter(x=>x[1]).map(x=>' · '+x[0]+' '+fmtMins(x[1])).join(''):'')));
-  const list=ev.length?el('div',{class:'blog'},ev.map(x=>el('div',{class:'rw'},el('span',{class:'c',style:'min-width:44px',text:hm(x.t)}),x.it?el('button',{style:'flex:1;min-width:0;text-align:left;overflow-wrap:anywhere','aria-label':'Edit '+x.it.text,onclick:()=>openEdit(x.it.id)},x.e+' '+x.l):el('span',{},x.e+' '+x.l),el('span',{class:'c',text:x.side}),
+  const list=ev.length?el('div',{class:'blog'},ev.map(x=>el('div',{class:'rw'},el('span',{class:'c',style:'min-width:44px',text:hm(x.t)}),x.trip?el('button',{style:'flex:1;min-width:0;text-align:left;overflow-wrap:anywhere','aria-label':'Open trip',onclick:()=>openTrip(x.trip)},x.e+' '+x.l):x.it?el('button',{style:'flex:1;min-width:0;text-align:left;overflow-wrap:anywhere','aria-label':'Edit '+x.it.text,onclick:()=>openEdit(x.it.id)},x.e+' '+x.l):el('span',{},x.e+' '+x.l),el('span',{class:'c',text:x.side}),
       x.b&&mine?el('button',{class:'x','aria-label':'Remove break','text':'×',onclick:e=>twoTap(e.currentTarget,()=>delBreak(x.b))}):null))):
     el('p',{class:'empty',text:mine?'Nothing here yet for '+dayLow(d)+'. Ticked tasks and breaks show up here.':'Nothing '+name(o)+' shared for '+dayLow(d)+'.'});
   return [seg,nav,strip,list,
