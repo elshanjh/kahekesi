@@ -339,6 +339,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .cyaglas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .cymore summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:14px;padding:4px 0}.cymore[open]{display:flex;flex-direction:column;gap:12px}
 .cyfeel{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px}
+.cysum{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 12px}.cysum .cyart svg{width:84px}
 .cyart svg{width:120px;height:auto;display:block}.cyfeelr{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
 .cybar{display:flex;align-items:center;gap:8px;font-size:16px}.cytrack{flex:1;height:8px;border-radius:9px;background:var(--sunk);position:relative}
 .cytrack i{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:var(--both);transform:translate(-50%,-50%);box-shadow:0 0 0 3px var(--surface)}
@@ -462,6 +463,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
     <div class="acts"><button class="btn" id="setSave">Save</button><button class="btn ghost" data-close>Cancel</button></div>
   </div>
 
+  <div class="sheet" id="cyDaySheet" hidden><div id="cyDayBody" style="display:flex;flex-direction:column;gap:10px"></div></div>
   <div class="sheet" id="wishSheet" hidden><div id="wishBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
   <div class="sheet" id="tripSheet" hidden><div id="tripBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
   <div class="sheet" id="breakSheet" hidden><div id="breakBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
@@ -843,14 +845,20 @@ function ownCycle(){const c=ccfg(),st=cycleStats(S.periods),o=other(ui.me),out=[
   const chipSet=(list,key,custom)=>el('div',{class:'chips'},[...new Set([...list,...(c[custom]||[]),...dr[key]])].map(w=>el('button',{type:'button',class:'chip','aria-pressed':String(dr[key].includes(w)),text:w,onclick:e=>{const i=dr[key].indexOf(w);if(i<0)dr[key].push(w);else dr[key].splice(i,1);e.currentTarget.setAttribute('aria-pressed',String(i<0));}})),
     el('button',{type:'button',class:'chip',text:'+ own',onclick:()=>{const v=(prompt('Add your own')||'').trim().slice(0,24);if(!v)return;dr[key].push(v);saveCcfg({[custom]:[...new Set([...(c[custom]||[]),v])]});}}));
   const shareNote=c.level==='feel'?name(o)+' sees your energy, feeling and Agla for today. Words, body and note stay private.':c.level==='dates'?name(o)+' sees only your dates.':'Nothing is shared with '+name(o)+'.';
-  out.push(el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:day===t?'Today':fmtDay(day)}),day!==t?el('button',{class:'btn ghost small',text:'Back to today',onclick:()=>{cyDay=null;cyDraft=null;render();}}):el('span',{text:saved.at?'saved':''})),
+  const lvl=v=>v==null?'':v<34?'low':v<67?'medium':'high';
+  const head=el('div',{class:'sec-h'},el('h2',{text:day===t?'Today':fmtDay(day)}),day!==t?el('button',{class:'btn ghost small',text:'Back to today',onclick:()=>{cyDay=null;cyDraft=null;ui.cyEdit=null;render();}}):el('span',{text:saved.at?'saved':''}));
+  if(saved.at&&ui.cyEdit!==day){const ag=AGLAS.find(a=>a[0]===saved.agla);
+    out.push(el('section',{class:'sec',id:'cyCheck'},head,el('div',{class:'cysum'},ag?aglaArt(ag[0],'sm'):null,el('div',{class:'cyfeelr'},
+      el('b',{text:ag?ag[1]+' '+ag[2]:'Checked in'}),el('span',{class:'fmeta',style:'text-align:left',text:'Energy '+lvl(saved.energy)+' · feeling '+lvl(saved.feel)+((saved.words||[]).length?' · '+saved.words.join(', '):'')})),
+      el('button',{class:'btn ghost small',text:'✎ Edit',onclick:()=>{ui.cyEdit=day;cyDraft=null;render();}}))));}
+  else out.push(el('section',{class:'sec',id:'cyCheck'},head,
     el('div',{class:'cycard'},slider('energy','🪫','⚡','Energy'),slider('feel','🌧️','☀️','Feeling'),
       el('div',{class:'fl'},'Which Agla are you?',el('div',{class:'cyaglas'},AGLAS.map(a=>el('button',{type:'button',class:'bkind','aria-pressed':String(dr.agla===a[0]),onclick:e=>{dr.agla=dr.agla===a[0]?null:a[0];for(const b of e.currentTarget.parentNode.children)b.setAttribute('aria-pressed','false');if(dr.agla)e.currentTarget.setAttribute('aria-pressed','true');}},el('b',{text:a[1]}),a[2])))),
       el('details',{class:'cymore',open:ui.cyMore||null,ontoggle:e=>{ui.cyMore=e.currentTarget.open;}},el('summary',{text:'More, only for you: words, body, a note'}),
         el('div',{class:'fl'},'Words',chipSet(WORDS,'words','myWords')),el('div',{class:'fl'},'Body',chipSet(SYMS,'syms','mySyms')),
         el('input',{class:'field',maxlength:'200',placeholder:'One line about today','aria-label':'Note',value:dr.note,oninput:e=>dr.note=e.target.value})),
       el('p',{class:'fmeta',style:'margin:0;text-align:left',text:shareNote}),
-      el('button',{class:'btn',text:'Save',onclick:()=>{cput('cdays',day,{energy:dr.energy,feel:dr.feel,agla:dr.agla,words:dr.words,syms:dr.syms,note:dr.note.trim(),at:Date.now()});cyDraft=null;toast('Saved.');}}))));
+      el('button',{class:'btn',text:'Save',onclick:()=>{cput('cdays',day,{energy:dr.energy,feel:dr.feel,agla:dr.agla,words:dr.words,syms:dr.syms,note:dr.note.trim(),at:Date.now()});cyDraft=null;ui.cyEdit=null;toast('Saved.');}}))));
   // calendar
   out.push(cyCalendar(st));
   // sharing
@@ -878,6 +886,21 @@ function cyPhase(d,st){const l=st.list;if(!l.length||d<l[0].start)return null;le
   if(d===ov)return 'ovulation';if(d>=addDays(ov,-5)&&d<=addDays(ov,1))return 'fertile';
   if(d>=addDays(ns,-5)&&d<ns)return 'pms';if(d<addDays(cs,pe))return 'after';return d<ov?'follicular':'luteal';}
 const PHASE={period:['🩸','Period'],predicted:['🩸','Period likely'],fertile:['🌱','Fertile window'],ovulation:['🌼','Ovulation (estimate)'],pms:['🌙','PMS days'],follicular:['✨','Follicular phase'],luteal:['🍂','Luteal phase'],after:['✨','Follicular phase']};
+function openCyDay(d){show('cyDaySheet');drawCyDay(d);}
+function drawCyDay(d){const st=cycleStats(S.periods),t=today(),pe=st.plen;
+  const p=st.list.find(q=>d>=q.start&&d<=(q.end||(q===st.last?(st.inP?t:addDays(q.start,pe-1)):addDays(q.start,pe-1))));
+  const before=st.list.filter(q=>q.start<d&&q.end&&dDiff(q.end,d)>=1&&dDiff(q.end,d)<=3).pop();
+  const act=(label,fn,ghost)=>el('button',{class:'btn'+(ghost?' ghost':''),text:label,onclick:()=>{fn();hide();}});
+  const ph=cyPhase(d,st);
+  $('cyDayBody').replaceChildren(...[el('h2',{text:fmtDay(d)}),ph&&PHASE[ph]?el('p',{class:'fmeta',style:'margin:0',text:PHASE[ph][0]+' '+PHASE[ph][1]}):null,
+    ...(p?[el('p',{class:'fmeta',style:'margin:0',text:'Part of your period from '+shortDay(p.start)+(p.end?' to '+shortDay(p.end):'')+'.'}),
+        d!==p.start?act('Period started this day',()=>setPeriod(p,{start:d})):null,
+        d!==p.end?act('Period ended this day',()=>setPeriod(p,{end:d})):null,
+        act('Not a period day',()=>{if(d===p.start){if(p.end&&p.end>d)setPeriod(p,{start:addDays(d,1)});else cdel('periods',p.id);}else setPeriod(p,{end:addDays(d,-1)});},true)]
+      :[(after=>after?act('Period started this day',()=>setPeriod(after,{start:d})):act('Period started this day',()=>{cput('periods',uid(),{start:d,end:null,tags:[],createdAt:Date.now()});toast('Period added from '+shortDay(d)+'.');}))(st.list.find(q=>q.start>d&&dDiff(d,q.start)<=7)),
+        before?act('Add to the period before (until this day)',()=>setPeriod(before,{end:d}),true):null]),
+    act(S.cdays[d]?'See or edit how I felt':'Log how I felt this day',()=>{cyDay=d===t?null:d;cyDraft=null;ui.cyEdit=d;render();setTimeout(()=>{const c=$('cyCheck');if(c)c.scrollIntoView({block:'start'});},50);},true),
+    el('button',{class:'btn ghost',text:'Close',onclick:hide})].filter(Boolean));}
 function cyCalendar(st){const t=today();ui.cyMonth=ui.cyMonth||t.slice(0,7);const [y,m]=ui.cyMonth.split('-').map(Number),off=(new Date(y,m-1,1).getDay()+6)%7,len=new Date(y,m,0).getDate(),cells=Math.ceil((off+len)/7)*7,start=addDays(ui.cyMonth+'-01',-off);
   const inReal=d=>cyPhase(d,st)==='period';
   const pred=d=>cyPhase(d,st)==='predicted';
@@ -885,11 +908,11 @@ function cyCalendar(st){const t=today();ui.cyMonth=ui.cyMonth||t.slice(0,7);cons
   const grid=el('div',{class:'month'},['Mo','Tu','We','Th','Fr','Sa','Su'].map(w=>el('span',{class:'wd',text:w})));
   for(let i=0;i<cells;i++){const d=addDays(start,i),ph=cyPhase(d,st),r=ph==='period',pr=ph==='predicted',lg=!!S.cdays[d],mk=ph==='ovulation'?'🌼':ph==='fertile'?'🌱':ph==='pms'?'🌙':'';
     grid.append(el('button',{class:'dayc'+(d.slice(0,7)!==ui.cyMonth?' out':'')+(d===t?' today':'')+(r?' cyp':pr?' cypr':'')+(mk?' cymk':''),'data-mk':mk||null,'aria-label':fmtDay(d)+(ph&&PHASE[ph]?', '+PHASE[ph][1]:''),disabled:d>t,
-      onclick:()=>{cyDay=d===t?null:d;cyDraft=null;render();window.scrollTo(0,0);}},String(Number(d.slice(8))),el('span',{class:'dots'},lg?el('i'):null)));}
+      onclick:()=>openCyDay(d)},String(Number(d.slice(8))),el('span',{class:'dots'},lg?el('i'):null)));}
   return el('section',{class:'sec'},el('div',{class:'mhead'},el('button',{class:'btn ghost','aria-label':'Previous month',text:'‹',onclick:()=>go(-1)}),
     el('h2',{style:'font-size:17px;text-align:center',text:new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})}),el('button',{class:'btn ghost','aria-label':'Next month',text:'›',onclick:()=>go(1)})),
     grid,el('div',{class:'key'},el('span',{},el('i',{class:'cyk'}),'Period'),el('span',{},el('i',{class:'cyk pr'}),'Likely'),el('span',{text:'🌱 Fertile'}),el('span',{text:'🌼 Ovulation'}),el('span',{text:'🌙 PMS'}),el('span',{text:'• checked in'})),
-    el('p',{class:'fmeta',style:'margin:0;text-align:left',text:'Fertile days and ovulation are estimates from your average cycle. Do not use them for contraception. Tap a past day to log it.'}));}
+    el('p',{class:'fmeta',style:'margin:0;text-align:left',text:'Tap a day to change period dates or log how you felt. Fertile days and ovulation are estimates from your average cycle, do not use them for contraception.'}));}
 
 /* ---------- "Today I'd like…": small requests to each other, for today only ---------- */
 const WDONT=['🎵 No singing','🙅 No touching','🤐 No teasing or jokes','🙊 Not too many questions','🔇 Keep it quiet'];
