@@ -126,12 +126,12 @@ function cycleStats(list, todayStr) {
   const plen = pl.length ? Math.round(pl.reduce((a, b) => a + b, 0) / pl.length) : 5;
   const last = l[l.length - 1] || null;
   let inP = false;
-  if (last) { const d = dayDiff(last.start, todayStr); inP = d >= 0 && (last.end ? todayStr <= last.end : d < plen + 3); }
+  if (last) { const d = dayDiff(last.start, todayStr); inP = d >= 0 && (last.end ? todayStr <= last.end : d < 14); }
   const spread = Math.max(1, Math.min(4, Math.round(sd)));
   const next = last ? {from: addDays(last.start, avg - spread), to: addDays(last.start, avg + spread)} : null;
   return {avg, plen, last, inP, next};
 }
-const shareInPeriod = (s, t) => s.lastStart && dayDiff(s.lastStart, t) >= 0 && (s.lastEnd ? t <= s.lastEnd : dayDiff(s.lastStart, t) < (s.plen || 5) + 3);
+const shareInPeriod = (s, t) => s.lastStart && dayDiff(s.lastStart, t) >= 0 && (s.lastEnd ? t <= s.lastEnd : dayDiff(s.lastStart, t) < 14);
 
 exports.onCycleShare = onDocumentWritten('cycle/{p}', async ev => {
   const p = ev.params.p;

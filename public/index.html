@@ -758,9 +758,9 @@ const cyPath=n=>'users/'+window.kkUid+'/'+n;
 function cput(n,id,d){if(db&&window.kkUid)return db.collection(cyPath(n)).doc(id).set(d).catch(fail);const m=n==='cyclecfg'?null:S[n];if(m){m[id]=Object.assign({id},d);}else S.ccfg=d;render();}
 function cdel(n,id){if(db&&window.kkUid)return db.collection(cyPath(n)).doc(id).delete().catch(fail);delete S[n][id];render();}
 function subCycle(){if(!window.kkUid)return;
-  const sn=(n,key)=>db.collection(cyPath(n)).onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=Object.assign({id:d.id},d.data());S[n]=m;cyLoaded[key]=true;render();},()=>{});
+  const sn=(n,key)=>db.collection(cyPath(n)).onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=Object.assign({id:d.id},d.data());S[n]=m;if(!snap.fromCache)cyLoaded[key]=true;render();},()=>{});
   sn('periods','p');sn('cdays','d');
-  db.collection(cyPath('cyclecfg')).onSnapshot(snap=>{const d=snap.docs.find(x=>x.id==='main');S.ccfg=d?d.data():{};cyLoaded.c=true;render();},()=>{});
+  db.collection(cyPath('cyclecfg')).onSnapshot(snap=>{const d=snap.docs.find(x=>x.id==='main');S.ccfg=d?d.data():{};if(!snap.fromCache)cyLoaded.c=true;render();},()=>{});
   db.collection('cycle').onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=d.data();S.share=m;render();},()=>{});}
 function saveCcfg(p){const n=Object.assign({},ccfg(),p);S.ccfg=n;cput('cyclecfg','main',n);
   if(db&&window.kkUid&&'on' in p)db.doc('users/'+window.kkUid).set({cycleOn:!!n.on},{merge:true}).catch(()=>{});render();}
@@ -769,12 +769,12 @@ function cycleStats(periods){const l=Object.values(periods).filter(p=>p.start).s
   const r=lens.slice(-6),avg=r.length?Math.round(r.reduce((a,b)=>a+b,0)/r.length):28,sd=r.length>1?Math.sqrt(r.reduce((a,b)=>a+(b-avg)**2,0)/r.length):0;
   const pl=l.filter(p=>p.end).map(p=>dDiff(p.start,p.end)+1).filter(n=>n>0&&n<15).slice(-6),plen=pl.length?Math.round(pl.reduce((a,b)=>a+b,0)/pl.length):5;
   const last=l[l.length-1]||null,t=today();let inP=false,pday=0;
-  if(last){const d=dDiff(last.start,t);if(d>=0&&(last.end?t<=last.end:d<plen+3)){inP=true;pday=d+1;}}
+  if(last){const d=dDiff(last.start,t);if(d>=0&&(last.end?t<=last.end:d<14)){inP=true;pday=d+1;}}
   const sp=Math.max(1,Math.min(4,Math.round(sd)));
   return {list:l,avg,plen,last,inP,pday,known:r.length,next:last?{from:addDays(last.start,avg-sp),to:addDays(last.start,avg+sp)}:null};}
 // What the partner can see, worked out from the shared summary.
 function shareStatus(sd){if(!sd||!sd.lastStart)return null;const t=today(),d=dDiff(sd.lastStart,t),pl=sd.plen||5;
-  const inP=d>=0&&(sd.lastEnd?t<=sd.lastEnd:d<pl+3);return {inP,pday:d+1,plen:pl,next:sd.next,soon:sd.next&&!inP?dDiff(t,sd.next.from):null};}
+  const inP=d>=0&&(sd.lastEnd?t<=sd.lastEnd:d<14);return {inP,pday:d+1,plen:pl,next:sd.next,soon:sd.next&&!inP?dDiff(t,sd.next.from):null};}
 const shortDay=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
 function cycleLine(st,who){if(!st)return '';const n=who?name(who)+"'s":'Your';
   if(st.inP)return (who?name(who)+' is on':'You are on')+' day '+st.pday+' of '+(who?'her':'your')+' period';
@@ -825,6 +825,7 @@ function ownCycle(){const c=ccfg(),st=cycleStats(S.periods),o=other(ui.me),out=[
   const endOn=d=>{if(st.last){const e=d<st.last.start?st.last.start:d;cput('periods',st.last.id,Object.assign(noId(st.last),{end:e}));toast('Period ended '+fmtDay(e).toLowerCase()+'.');}};
   out.push(el('div',{class:'sec'},el('section',{class:'goal'},el('span',{class:'k',text:'Your cycle'}),el('h2',{text:cycleLine(st)||'Log your last period to start'}),
     (ph=>ph&&PHASE[ph]&&ph!=='period'?el('span',{class:'cyphase',text:PHASE[ph][0]+' Today: '+PHASE[ph][1]}):null)(cyPhase(t,st)),
+    st.inP&&!st.last.end&&st.pday>st.plen?el('span',{class:'fmeta',style:'text-align:left',text:'Longer than your usual '+st.plen+' days. Still going? Tap Period ended when it is over.'}):null,
     el('span',{class:'fmeta',style:'text-align:left',text:st.known?'Average cycle '+st.avg+' days · period about '+st.plen+' days':'Predictions get better after two periods.'}),
     el('div',{class:'r',style:'display:flex;gap:8px;flex-wrap:wrap'},st.inP?[el('button',{class:'btn small',text:'Period ended today',onclick:()=>endOn(t)}),pick('Ended another day',endOn)]:
       [el('button',{class:'btn small',text:'Period started today',onclick:()=>startOn(t)}),pick('Started another day',startOn)]))));
