@@ -40,7 +40,9 @@ const wrapDoc = ref => ({
 const kkDb = {
   collection: c => ({
     doc: id => wrapDoc(doc(fs, c, id)),
-    onSnapshot: (cb, err) => onSnapshot(collection(fs, c), {includeMetadataChanges: true}, s => cb({docs: s.docs.map(d => ({id: d.id, data: () => d.data()})), fromCache: s.metadata.fromCache}), err),
+    onSnapshot: (cb, err) => { let fc = null; return onSnapshot(collection(fs, c), {includeMetadataChanges: true}, s => {
+      if (!s.docChanges().length && fc === s.metadata.fromCache) return; fc = s.metadata.fromCache;
+      cb({docs: s.docs.map(d => ({id: d.id, data: () => d.data()})), fromCache: s.metadata.fromCache}); }, err); },
   }),
   doc: path => wrapDoc(doc(fs, path)),
 };

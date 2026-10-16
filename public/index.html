@@ -820,6 +820,11 @@ function partnerCycle(o,sd){const st=shareStatus(sd),m=sd.mood&&sd.mood.date===t
   return out;}
 
 let cyDay=null,cyDraft=null;
+// A date chip that opens the picker and calls fn with the chosen day.
+const dateChip=(label,value,fn,max)=>el('label',{class:'dchip'},label,el('input',{type:'date',max:max||today(),value:value||'','aria-label':label,onchange:e=>e.target.value&&fn(e.target.value)}));
+function setPeriod(p,ch){const n=Object.assign(noId(p),ch);if(n.end&&n.end<n.start){toast('The end cannot be before the start.');return;}
+  if(st0().list.some(q=>q.id!==p.id&&q.start===n.start)){toast('Another period already starts that day.');return;}cput('periods',p.id,n);toast('Updated.');}
+const st0=()=>cycleStats(S.periods);
 function ownCycle(){const c=ccfg(),st=cycleStats(S.periods),o=other(ui.me),out=[],t=today(),day=cyDay||t;
   // status
   const pick=(label,fn)=>el('label',{class:'dchip'},label,el('input',{type:'date',max:t,'aria-label':label,onchange:e=>e.target.value&&fn(e.target.value)}));
@@ -830,7 +835,7 @@ function ownCycle(){const c=ccfg(),st=cycleStats(S.periods),o=other(ui.me),out=[
     (ph=>ph&&PHASE[ph]&&ph!=='period'?el('span',{class:'cyphase',text:PHASE[ph][0]+' Today: '+PHASE[ph][1]}):null)(cyPhase(t,st)),
     st.inP&&!st.last.end&&st.pday>st.plen?el('span',{class:'fmeta',style:'text-align:left',text:'Longer than your usual '+st.plen+' days. Still going? Tap Period ended when it is over.'}):null,
     el('span',{class:'fmeta',style:'text-align:left',text:st.known?'Average cycle '+st.avg+' days · period about '+st.plen+' days':'Predictions get better after two periods.'}),
-    el('div',{class:'r',style:'display:flex;gap:8px;flex-wrap:wrap'},st.inP?[el('button',{class:'btn small',text:'Period ended today',onclick:()=>endOn(t)}),pick('Ended another day',endOn)]:
+    el('div',{class:'r',style:'display:flex;gap:8px;flex-wrap:wrap'},st.inP?[el('button',{class:'btn small',text:'Period ended today',onclick:()=>endOn(t)}),pick('Ended another day',endOn),dateChip('Started '+shortDay(st.last.start),st.last.start,v=>setPeriod(st.last,{start:v}))]:
       [el('button',{class:'btn small',text:'Period started today',onclick:()=>startOn(t)}),pick('Started another day',startOn)]))));
   // check-in
   const saved=S.cdays[day]||{},dr=cyDraft&&cyDraft.day===day?cyDraft:(cyDraft={day,energy:saved.energy??50,feel:saved.feel??50,agla:saved.agla||null,words:(saved.words||[]).slice(),syms:(saved.syms||[]).slice(),note:saved.note||''});
@@ -855,7 +860,7 @@ function ownCycle(){const c=ccfg(),st=cycleStats(S.periods),o=other(ui.me),out=[
   // history
   const hist=st.list.slice().reverse();
   out.push(el('section',{class:'sec'},el('h2',{text:'Past periods'}),hist.length?el('div',{class:'blog'},more(hist,4,'cyAll').map((p,i)=>{const nx=hist[i-1],len=nx?dDiff(p.start,nx.start):null;
-    return el('div',{class:'rw',style:'flex-wrap:wrap'},el('span',{},shortDay(p.start)+(p.end?' to '+shortDay(p.end):p===st.last?' (ongoing)':''),el('small',{style:'display:block;color:var(--muted);font-size:12.5px',text:[p.end?(dDiff(p.start,p.end)+1)+' days':null,len?'cycle '+len+' days':null].filter(Boolean).join(' · ')})),
+    return el('div',{class:'rw',style:'flex-wrap:wrap'},el('span',{},el('span',{class:'r',style:'display:flex;gap:6px;flex-wrap:wrap'},dateChip('Start '+shortDay(p.start),p.start,v=>setPeriod(p,{start:v})),dateChip(p.end?'End '+shortDay(p.end):p===st.last?'Ongoing · set end':'Set end',p.end||p.start,v=>setPeriod(p,{end:v}))),el('small',{style:'display:block;color:var(--muted);font-size:12.5px',text:[p.end?(dDiff(p.start,p.end)+1)+' days':null,len?'cycle '+len+' days':null].filter(Boolean).join(' · ')})),
       el('button',{class:'x','aria-label':'Delete this period',text:'×',onclick:e=>twoTap(e.currentTarget,()=>cdel('periods',p.id))}),
       el('div',{class:'chips',style:'flex-basis:100%'},TAGS.map(([k,l])=>el('button',{class:'chip cytag','aria-pressed':String((p.tags||[]).includes(k)),text:l,onclick:()=>{const tg=new Set(p.tags||[]);tg.has(k)?tg.delete(k):tg.add(k);cput('periods',p.id,Object.assign(noId(p),{tags:[...tg]}));}}))));})):
     el('p',{class:'empty',text:'No periods logged yet. Use "Started another day" above to add your last one.'}),moreBtn(hist,4,'cyAll'),
@@ -1374,7 +1379,7 @@ function render(){
   if(ui.tab==='rewards'&&$('rwTitle')&&!draft)draft={t:$('rwTitle').value,c:$('rwCost').value};
   const t=ui.tab,built=t==='inbox'?vInbox():t==='todo'?vTodo():t==='shopping'?vShop():t==='idea'?vIdea():t==='day'?vDay():t==='review'?vReview():t==='activity'?vActivity():t==='cycle'?vCycle():isCat?vCat(cur):vRewards();
   draft=null;
-  $('view').replaceChildren(...built.filter(Boolean));
+  const sy=window.scrollY;$('view').replaceChildren(...built.filter(Boolean));if(Math.abs(window.scrollY-sy)>1)window.scrollTo(0,sy);
   if((focus==='rwTitle'||focus==='rwCost'||focus==='shopQ')&&$(focus)){const f=$(focus);f.focus();if(focus==='shopQ')try{f.setSelectionRange(f.value.length,f.value.length)}catch(e){}}
   drawWith();if(!$('overlay').hidden&&!$('focusSheet').hidden)drawFocus();
   if(!$('overlay').hidden&&!$('breakSheet').hidden&&!(document.activeElement&&document.activeElement.id==='bkNew'))drawBreak();
