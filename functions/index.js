@@ -122,7 +122,7 @@ function cycleStats(list, todayStr) {
   for (let i = 1; i < l.length; i++) { const d = dayDiff(l[i - 1].start, l[i].start); if (d >= 15 && d <= 60 && !(l[i - 1].tags || []).some(t => SKIP.has(t))) lens.push(d); }
   const recent = lens.slice(-6), avg = recent.length ? Math.round(recent.reduce((a, b) => a + b, 0) / recent.length) : 28;
   const sd = recent.length > 1 ? Math.sqrt(recent.reduce((a, b) => a + (b - avg) ** 2, 0) / recent.length) : 0;
-  const pl = l.filter(p => p.end).map(p => dayDiff(p.start, p.end) + 1).filter(n => n > 0 && n < 15).slice(-6);
+  const pl = l.filter(p => p.end).map(p => dayDiff(p.start, p.end) + 1).filter(n => n >= 2 && n < 15).slice(-6);
   const plen = pl.length ? Math.round(pl.reduce((a, b) => a + b, 0) / pl.length) : 5;
   const last = l[l.length - 1] || null;
   let inP = false;

@@ -770,14 +770,14 @@ function saveCcfg(p){const n=Object.assign({},ccfg(),p);S.ccfg=n;cput('cyclecfg'
 function cycleStats(periods){const l=Object.values(periods).filter(p=>p.start).sort((a,b)=>a.start.localeCompare(b.start)),lens=[];
   for(let i=1;i<l.length;i++){const d=dDiff(l[i-1].start,l[i].start);if(d>=15&&d<=60&&!(l[i-1].tags||[]).some(t=>CYSKIP.has(t)))lens.push(d);}
   const r=lens.slice(-6),avg=r.length?Math.round(r.reduce((a,b)=>a+b,0)/r.length):28,sd=r.length>1?Math.sqrt(r.reduce((a,b)=>a+(b-avg)**2,0)/r.length):0;
-  const pl=l.filter(p=>p.end).map(p=>dDiff(p.start,p.end)+1).filter(n=>n>0&&n<15).slice(-6),plen=pl.length?Math.round(pl.reduce((a,b)=>a+b,0)/pl.length):5;
+  const pl=l.filter(p=>p.end).map(p=>dDiff(p.start,p.end)+1).filter(n=>n>=2&&n<15).slice(-6),plen=pl.length?Math.round(pl.reduce((a,b)=>a+b,0)/pl.length):5;
   const last=l[l.length-1]||null,t=today();let inP=false,pday=0;
   if(last){const d=dDiff(last.start,t);if(d>=0&&(last.end?t<=last.end:d<14)){inP=true;pday=d+1;}}
   const sp=Math.max(1,Math.min(4,Math.round(sd)));
-  return {list:l,avg,plen,last,inP,pday,known:r.length,next:last?{from:addDays(last.start,avg-sp),to:addDays(last.start,avg+sp)}:null};}
+  return {list:l,avg,plen,plenKnown:pl.length>0,last,inP,pday,known:r.length,next:last?{from:addDays(last.start,avg-sp),to:addDays(last.start,avg+sp)}:null};}
 // What the partner can see, worked out from the shared summary.
 function shareStatus(sd){if(!sd||!sd.lastStart)return null;const t=today(),d=dDiff(sd.lastStart,t),pl=sd.plen||5;
-  const inP=d>=0&&(sd.lastEnd?t<=sd.lastEnd:d<14);return {inP,pday:d+1,plen:pl,next:sd.next,soon:sd.next&&!inP?dDiff(t,sd.next.from):null};}
+  const inP=d>=0&&(sd.lastEnd?t<=sd.lastEnd:d<14);return {inP,pday:d+1,plen:pl,plenKnown:sd.plenKnown!==false&&pl>=2,next:sd.next,soon:sd.next&&!inP?dDiff(t,sd.next.from):null};}
 const shortDay=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
 function cycleLine(st,who){if(!st)return '';const n=who?name(who)+"'s":'Your';
   if(st.inP)return (who?name(who)+' is on':'You are on')+' day '+st.pday+' of '+(who?'her':'your')+' period';
@@ -789,7 +789,7 @@ function cycleLine(st,who){if(!st)return '';const n=who?name(who)+"'s":'Your';
 let lastShare='';
 function syncShare(){if(!db||!cyLoaded.p||!cyLoaded.c||!cyLoaded.d||ui.me!==window.kkMe)return;const c=ccfg();if(!c.on&&!S.share[ui.me])return;
   const st=cycleStats(S.periods),lvl=c.on?(c.level||'feel'):'off';
-  const d=lvl==='off'?{who:ui.me,level:'off'}:{who:ui.me,level:lvl,lastStart:st.last?st.last.start:null,lastEnd:st.last&&st.last.end||null,avg:st.avg,plen:st.plen,next:st.next,helps:c.helps||'',mood:null};
+  const d=lvl==='off'?{who:ui.me,level:'off'}:{who:ui.me,level:lvl,lastStart:st.last?st.last.start:null,lastEnd:st.last&&st.last.end||null,avg:st.avg,plen:st.plen,plenKnown:st.plenKnown,next:st.next,helps:c.helps||'',mood:null};
   if(lvl==='feel'){const m=S.cdays[today()];if(m&&(m.energy!=null||m.agla))d.mood={date:today(),energy:m.energy??null,feel:m.feel??null,agla:m.agla||null};}
   const j=JSON.stringify(d);if(j===lastShare)return;lastShare=j;db.doc('cycle/'+ui.me).set(Object.assign(d,{updatedAt:Date.now()})).catch(()=>{});}
 setInterval(syncShare,60000);
@@ -808,7 +808,7 @@ function vCycle(){const o=other(ui.me),sd=S.share[o],c=ccfg(),out=[];
 
 function partnerCycle(o,sd){const st=shareStatus(sd),m=sd.mood&&sd.mood.date===today()?sd.mood:null,out=[];
   const card=el('section',{class:'goal'},el('span',{class:'k',text:name(o)+"'s cycle"}),el('h2',{text:cycleLine(st,o)||'No dates yet'}),
-    st&&st.inP?el('span',{class:'fmeta',style:'text-align:left',text:'Usually about '+st.plen+' days.'}):null);
+    st&&st.inP&&st.plenKnown?el('span',{class:'fmeta',style:'text-align:left',text:'Usually about '+st.plen+' days.'}):null);
   out.push(el('div',{class:'sec'},card));
   if(sd.level==='feel')out.push(el('section',{class:'sec'},el('h2',{text:'How '+name(o)+' feels today'}),
     m?el('div',{class:'cyfeel'},m.agla?aglaArt(m.agla,'pc'):null,el('div',{class:'cyfeelr'},m.agla?el('b',{text:(AGLAS.find(x=>x[0]===m.agla)||[])[1]+' '+(AGLAS.find(x=>x[0]===m.agla)||[])[2]}):null,
@@ -833,8 +833,8 @@ function ownCycle(){const c=ccfg(),st=cycleStats(S.periods),o=other(ui.me),out=[
   const endOn=d=>{if(st.last){const e=d<st.last.start?st.last.start:d;cput('periods',st.last.id,Object.assign(noId(st.last),{end:e}));toast('Period ended '+fmtDay(e).toLowerCase()+'.');}};
   out.push(el('div',{class:'sec'},el('section',{class:'goal'},el('span',{class:'k',text:'Your cycle'}),el('h2',{text:cycleLine(st)||'Log your last period to start'}),
     (ph=>ph&&PHASE[ph]&&ph!=='period'?el('span',{class:'cyphase',text:PHASE[ph][0]+' Today: '+PHASE[ph][1]}):null)(cyPhase(t,st)),
-    st.inP&&!st.last.end&&st.pday>st.plen?el('span',{class:'fmeta',style:'text-align:left',text:'Longer than your usual '+st.plen+' days. Still going? Tap Period ended when it is over.'}):null,
-    el('span',{class:'fmeta',style:'text-align:left',text:st.known?'Average cycle '+st.avg+' days · period about '+st.plen+' days':'Predictions get better after two periods.'}),
+    st.inP&&!st.last.end&&st.plenKnown&&st.pday>st.plen?el('span',{class:'fmeta',style:'text-align:left',text:'Longer than your usual '+st.plen+' days. Still going? Tap Period ended when it is over.'}):null,
+    el('span',{class:'fmeta',style:'text-align:left',text:st.known?'Average cycle '+st.avg+' days'+(st.plenKnown?' · period about '+st.plen+' days':''):'Predictions get better after two periods.'}),
     el('div',{class:'r',style:'display:flex;gap:8px;flex-wrap:wrap'},st.inP?[el('button',{class:'btn small',text:'Period ended today',onclick:()=>endOn(t)}),pick('Ended another day',endOn),dateChip('Started '+shortDay(st.last.start),st.last.start,v=>setPeriod(st.last,{start:v}))]:
       [el('button',{class:'btn small',text:'Period started today',onclick:()=>startOn(t)}),pick('Started another day',startOn)]))));
   // check-in
