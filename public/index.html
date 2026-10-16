@@ -1362,8 +1362,20 @@ function twoTap(btn,fn){if(btn.dataset.sure){fn();return;}btn.dataset.sure='1';c
 /* ---------- render ---------- */
 const VIEWS={inbox:['Inbox','Something on your mind? Drop it here'],day:['Schedule',''],todo:['To-dos','New to-do, then set the details…'],shopping:['Shopping','Add to the shopping list…'],idea:['Ideas','Park an idea…'],rewards:['Rewards','Something on your mind? Drop it here'],review:['Weekly review','Something on your mind? Drop it here'],cycle:['Cycle','Something on your mind? Drop it here'],activity:['Activity','Something on your mind? Drop it here']};
 const told=new Set();
-function go(id){ui.tab=id;ls.set('tab',id);closeMenu();window.scrollTo(0,0);render();}
-function closeMenu(){$('side').classList.remove('open');$('scrim').hidden=true;}
+/* ---------- phone back button: pages, open windows and the side menu go into the browser history ---------- */
+const hs=()=>history.state||{};
+function go(id){const was=ui.tab;ui.tab=id;ls.set('tab',id);closeMenu(true);
+  if(was!==id){if(hs().layer)history.replaceState({kk:1,tab:id},'','/');else history.pushState({kk:1,tab:id},'','/');}
+  window.scrollTo(0,0);render();}
+let backT=null;
+const layerBack=()=>{clearTimeout(backT);backT=setTimeout(()=>{if($('overlay').hidden&&!$('side').classList.contains('open')&&hs().layer)history.back();},0);};
+const layerPush=()=>{clearTimeout(backT);if(!hs().layer)history.pushState({kk:1,tab:ui.tab,layer:1},'','/');};
+function closeMenu(quiet){const was=$('side').classList.contains('open');$('side').classList.remove('open');$('scrim').hidden=true;if(was&&!quiet)layerBack();}
+window.addEventListener('popstate',e=>{const st=e.state||{};
+  if(!$('overlay').hidden){hide(true);return;}
+  if($('side').classList.contains('open')){closeMenu(true);return;}
+  const t=st.tab||'day';if(t!==ui.tab){ui.tab=t;ls.set('tab',t);window.scrollTo(0,0);render();}});
+try{history.replaceState({kk:1,tab:ui.tab},'','/');}catch(e){}
 function capChips(){const box=$('capCats'),txt=$('capInput').value.trim(),ok=txt&&['inbox','idea'].includes(ui.tab)&&cats().length;
   box.hidden=!ok;if(!ok){box.replaceChildren();return;}
   box.replaceChildren('Category:',...cats().map(c=>el('button',{type:'button',class:'chip',style:'--h:'+hue(c),onclick:()=>{const t=$('capInput').value.trim();if(!t)return;$('capInput').value='';addItem(t,c);capChips();}},el('i'),c)));}
@@ -1412,8 +1424,8 @@ function render(){
 function seg(id,val){const box=$(id);if(val!==undefined){for(const b of box.children)b.setAttribute('aria-pressed',String(b.dataset.v===String(val)));return;}
   const on=[...box.children].find(b=>b.getAttribute('aria-pressed')==='true');return on?on.dataset.v:null;}
 for(const id of ['edKind','edOwner','edPts','edRep','edImp','edUrg','edPart','setMe','setSound'])$(id).addEventListener('click',e=>{const b=e.target.closest('button');if(b)seg(id,b.dataset.v);});
-function show(id){for(const s of $('overlay').children)s.hidden=s.id!==id;$('overlay').hidden=false;}
-function hide(){$('overlay').hidden=true;ui.editId=null;ui.accepting=false;}
+function show(id){for(const s of $('overlay').children)s.hidden=s.id!==id;$('overlay').hidden=false;layerPush();}
+function hide(fromBack){const was=!$('overlay').hidden;$('overlay').hidden=true;ui.editId=null;ui.accepting=false;if(was&&fromBack!==true)layerBack();}
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay')||e.target.closest('[data-close]'))hide();});
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!$('overlay').hidden)hide();else closeMenu();});
 
@@ -1432,6 +1444,7 @@ function addStep(){const t=$('edStepNew').value.trim();if(!t)return;edSt.push({t
 $('edStepAdd').onclick=addStep;$('edStepNew').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addStep();}});
 $('edFocus').onclick=()=>{const id=ui.editId;hide();if(id)openFocus(id);};
 $('focusBtn').onclick=()=>openFocus();
+for(const x of [$('face'),document.querySelector('.brand h1')]){x.style.cursor='pointer';x.setAttribute('role','link');x.setAttribute('aria-label','Go to Schedule');x.addEventListener('click',()=>{ui.day=today();go('day');});}
 function calLink(){const dv=$('edDate').value;$('edToday').setAttribute('aria-pressed',String(dv===today()));$('edTom').setAttribute('aria-pressed',String(dv===addDays(today(),1)));$('edNoDay').setAttribute('aria-pressed',String(!dv));const du=$('edDue').value;for(const [b,d] of [['dueToday',today()],['dueTom',addDays(today(),1)],['dueWeek',addDays(today(),7)],['dueNone','']])$(b).setAttribute('aria-pressed',String(du===d));const u=gcal($('edText').value.trim()||'Task',$('edDate').value,$('edStart').value,$('edEnd').value),a=$('edCal');a.hidden=!u;if(u)a.href=u;}
 for(const id of ['edText','edDate','edStart','edEnd','edDue'])$(id).addEventListener('input',calLink);
 for(const [b,n] of [['dueToday',0],['dueTom',1],['dueWeek',7],['dueNone',null]])$(b).onclick=()=>{$('edDue').value=n==null?'':addDays(today(),n);calLink();};
@@ -1482,7 +1495,7 @@ $('whoA').onclick=()=>{setMe('a');render();};$('whoB').onclick=()=>{setMe('b');r
 
 $('capForm').addEventListener('submit',e=>{e.preventDefault();const t=$('capInput').value.trim();if(!t&&!(ui.tab==='day'||ui.tab==='todo'||ui.tab.slice(0,4)==='cat:'))return;$('capInput').value='';addItem(t);capChips();});
 $('capInput').addEventListener('input',capChips);
-function openMenu(){$('side').classList.add('open');$('scrim').hidden=false;}
+function openMenu(){$('side').classList.add('open');$('scrim').hidden=false;layerPush();}
 $('scrim').onclick=closeMenu;
 $('setCatAdd').onclick=()=>{const c=$('setCatNew').value.trim();if(!c)return;$('setCatNew').value='';if(!cats().includes(c))saveCfg({cats:cats().concat(c)});};
 
