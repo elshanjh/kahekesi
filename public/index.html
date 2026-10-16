@@ -318,7 +318,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .blog .rw:first-child{border-top:0}
 .dchip{position:relative;flex:none;display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;border:1.5px solid var(--line);font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}
 .dchip::after{content:"✎";font-size:12px;color:var(--muted)}
-.dchip input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.dchip input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;pointer-events:none}
 .rw.trip{width:100%;text-align:left;border-top:1px solid var(--line)}.blog .rw.trip:first-child{border-top:0}
 .tlist{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
 .trow{display:flex;align-items:center;gap:6px}.trow .sitem{flex:1;min-width:0}
@@ -449,7 +449,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 
   <div class="sheet" id="setSheet" hidden>
     <h2>Settings</h2>
-    <label class="f">This device belongs to<div class="seg" id="setMe"><button type="button" data-v="a"></button><button type="button" data-v="b"></button></div></label>
+    <label class="f" id="setMeWrap">This device belongs to<div class="seg" id="setMe"><button type="button" data-v="a"></button><button type="button" data-v="b"></button></div></label>
     <div class="r">
       <label class="f">First name<input class="field" id="setA" maxlength="20"></label>
       <label class="f">Second name<input class="field" id="setB" maxlength="20"></label>
@@ -505,6 +505,9 @@ const $=id=>document.getElementById(id);
 function el(tag,attrs,...kids){const n=document.createElement(tag);for(const k in attrs||{}){const v=attrs[k];if(v==null||v===false)continue;if(k==='class')n.className=v;else if(k==='text')n.textContent=v;else if(k.slice(0,2)==='on')n.addEventListener(k.slice(2),v);else n.setAttribute(k,v===true?'':v);}for(const c of kids.flat()){if(c==null||c===false)continue;n.append(c.nodeType?c:document.createTextNode(String(c)));}return n;}
 const ls={get(k){try{return localStorage.getItem('kahekesi.'+k)}catch(e){return null}},set(k,v){try{localStorage.setItem('kahekesi.'+k,v)}catch(e){}}};
 
+// Date chips: a hidden date field inside a label. Tapping the chip opens the picker (showPicker where the browser has it).
+document.addEventListener('click',e=>{const c=e.target.closest('.dchip');if(!c)return;const i=c.querySelector('input[type=date]');if(!i)return;e.preventDefault();
+  try{if(i.showPicker)i.showPicker();else{i.style.pointerEvents='auto';i.focus();i.click();}}catch(x){i.style.pointerEvents='auto';i.focus();}});
 /* ---------- dates ---------- */
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -784,7 +787,7 @@ function cycleLine(st,who){if(!st)return '';const n=who?name(who)+"'s":'Your';
   return n+' period was expected around '+shortDay(st.next.from)+' and has not started';}
 // Keep the shared summary in step with her data and chosen level.
 let lastShare='';
-function syncShare(){if(!db||!cyLoaded.p||!cyLoaded.c||!cyLoaded.d)return;const c=ccfg();if(!c.on&&!S.share[ui.me])return;
+function syncShare(){if(!db||!cyLoaded.p||!cyLoaded.c||!cyLoaded.d||ui.me!==window.kkMe)return;const c=ccfg();if(!c.on&&!S.share[ui.me])return;
   const st=cycleStats(S.periods),lvl=c.on?(c.level||'feel'):'off';
   const d=lvl==='off'?{who:ui.me,level:'off'}:{who:ui.me,level:lvl,lastStart:st.last?st.last.start:null,lastEnd:st.last&&st.last.end||null,avg:st.avg,plen:st.plen,next:st.next,helps:c.helps||'',mood:null};
   if(lvl==='feel'){const m=S.cdays[today()];if(m&&(m.energy!=null||m.agla))d.mood={date:today(),energy:m.energy??null,feel:m.feel??null,agla:m.agla||null};}
@@ -1441,10 +1444,10 @@ $('goalSave').onclick=()=>{const v=goalVals();if(v){saveCfg(v);hide();}};
 $('goalReset').onclick=e=>{const b=e.currentTarget;if(!b.dataset.sure){b.dataset.sure='1';b.textContent='Tap again to reset progress';b.classList.add('danger');return;}
   const v=goalVals();if(v){saveCfg(Object.assign(v,{goalSince:Date.now()}));hide();}};
 
-$('meBtn').onclick=()=>{$('setMe').children[0].textContent=name('a');$('setMe').children[1].textContent=name('b');seg('setMe',ui.me);
+$('meBtn').onclick=()=>{$('setMeWrap').hidden=!!window.kkLocked;$('setMe').children[0].textContent=name('a');$('setMe').children[1].textContent=name('b');seg('setMe',ui.me);
   $('setA').value=S.cfg.nameA;$('setB').value=S.cfg.nameB;seg('setSound',ui.sound?'on':'off');show('setSheet');};
 function setMe(p){ui.me=p;ui.meKnown=true;ls.set('me',p);if(window.kkSetMe)window.kkSetMe(p);}
-$('setSave').onclick=()=>{const a=$('setA').value.trim()||DEF.nameA,b=$('setB').value.trim()||DEF.nameB;setMe(seg('setMe')||ui.me);
+$('setSave').onclick=()=>{const a=$('setA').value.trim()||DEF.nameA,b=$('setB').value.trim()||DEF.nameB;if(!window.kkLocked)setMe(seg('setMe')||ui.me);
   ui.sound=seg('setSound')!=='off';ls.set('sound',ui.sound?'on':'off');hide();
   if(a!==S.cfg.nameA||b!==S.cfg.nameB)saveCfg({nameA:a,nameB:b});else render();};
 $('whoA').onclick=()=>{setMe('a');render();};$('whoB').onclick=()=>{setMe('b');render();};

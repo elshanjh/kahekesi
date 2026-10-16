@@ -138,7 +138,9 @@ async function enter(user) {
   role = a.role || 'member'; uid = user.uid;
   let u = null;
   try { const s = await getDoc(doc(fs, 'users', uid)); u = s.exists() ? s.data() : null; } catch (e) {}
-  me = (u && (u.me === 'a' || u.me === 'b')) ? u.me : (a.me === 'b' ? 'b' : 'a');
+  // Who you are comes from your account in the allow list, so one account can never act as the other person.
+  me = a.me === 'b' ? 'b' : 'a';
+  window.kkLocked = true;
   window.kkMe = me;
   window.kkUid = uid;
   setDoc(doc(fs, 'users', uid), {email, me, updatedAt: Date.now()}, {merge: true}).catch(() => {});
@@ -153,7 +155,7 @@ async function enter(user) {
   if (role === 'owner') watchPeople();
 }
 
-window.kkSetMe = p => { me = p; if (uid) setDoc(doc(fs, 'users', uid), {me: p, updatedAt: Date.now()}, {merge: true}).catch(() => {}); };
+window.kkSetMe = () => {};
 
 getRedirectResult(auth).catch(e => showSignIn(errText(e), true));
 onAuthStateChanged(auth, user => {
