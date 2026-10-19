@@ -1202,7 +1202,9 @@ function searchResults(){const q=(ui.shopQ||'').trim().toLowerCase();if(!q)retur
   const onList=t=>vis().some(it=>it.kind==='shopping'&&!it.done&&it.text.trim().toLowerCase()===t);
   if(!groups.length)return [el('p',{class:'empty',text:'Nothing called "'+ui.shopQ.trim()+'" bought yet.'})];
   return groups.map(l=>{const last=l[0],pr=l.find(p=>p.price);
-    const ups=l.filter(p=>p.up),u0=ups.length?ups[0].up.unit:null,same=ups.filter(p=>p.up.unit===u0),best=same.length>1?same.reduce((a,b)=>b.up.per<a.up.per?b:a):null;
+    // Comparable price: per kg / litre when the amount says so, otherwise per piece. Purchases without a price are skipped.
+    const cmp=p=>{if(!p.price)return null;if(p.up)return p.up;const a=parseAmt(p.qty);return !a||a.unit==='pc'?{per:p.price/(a?a.n:1),unit:'each'}:null;};
+    const ups=l.map(p=>Object.assign({},p,{c:cmp(p)})).filter(p=>p.c),u0=ups.length?ups[0].c.unit:null,same=ups.filter(p=>p.c.unit===u0),best0=same.length>1?same.reduce((a,b)=>b.c.per<a.c.per?b:a):null,best=best0&&Object.assign({},best0,{up:best0.c});
     return el('div',{class:'sgroup'},el('div',{class:'shead'},el('div',{},el('b',{text:last.text}),el('small',{text:'last bought '+boughtAgo(last.at)+(pr?' · '+eur(pr.price):'')+(pr&&pr.up?' ('+upLabel(pr.up)+')':'')+' · '+l.length+(l.length===1?' time':' times')}),
         best?el('small',{class:'sbest',text:'Cheapest: '+upLabel(best.up)+(best.store?' at '+best.store:'')+(best.brand?' · '+best.brand:'')+', '+boughtAgo(best.at)}):null),
         onList(last.k)?el('span',{class:'pill',text:'on the list'}):el('button',{class:'btn ghost small',text:'+ List',onclick:e=>{put('items',uid(),fresh(blank({text:last.text,kind:'shopping',owner:'both',points:5})));toast('Added '+last.text+'.');e.currentTarget.replaceWith(el('span',{class:'pill',text:'on the list'}));}})),
