@@ -1188,8 +1188,8 @@ function parseAmt(v){if(v==null||v==='')return null;
   if(/^(l|ltr|litre|liter|litres|liters)$/.test(u))return {n,base:n,unit:'l'};if(u==='ml')return {n,base:n/1000,unit:'l'};if(u==='cl')return {n,base:n/100,unit:'l'};if(u==='dl')return {n,base:n/10,unit:'l'};
   return {n,base:n,unit:'pc'};}
 const amtLabel=v=>{if(v==null||v==='')return '';const a=parseAmt(v);return a&&a.unit==='pc'&&/^\d+(\.\d+)?$/.test(String(v).trim().replace(',','.'))?a.n+'×':String(v).trim();};
-function unitPrice(price,v){const a=parseAmt(v);if(!price||!a)return null;if(a.unit==='pc'){if(a.n<=1)return null;return {per:price/a.n,unit:'each'};}return {per:price/a.base,unit:a.unit};}
-const upLabel=u=>u?eur(u.per)+(u.unit==='each'?' each':'/'+u.unit):'';
+function unitPrice(price,v){const a=parseAmt(v);if(!price||!a)return null;if(a.unit==='pc'){if(a.n<=1)return null;return {per:price/a.n,unit:'each'};}return {per:price/a.base,unit:a.unit,each:a.packs>1?price/a.packs:null};}
+const upLabel=u=>u?eur(u.per)+(u.unit==='each'?' each':'/'+u.unit)+(u.each?' · '+eur(u.each)+' each':''):'';
 function purchases(){const out=[];for(const it of items()){if(it.kind!=='shopping'||!it.done)continue;const t=it.tripId&&S.trips[it.tripId],x=t&&(t.items||[]).find(y=>y.id===it.id);
   out.push({k:it.text.trim().toLowerCase(),text:it.text.trim(),at:it.doneAt||0,price:it.price||(x&&x.price)||null,qty:x&&x.qty!=null?x.qty:null,store:t&&t.store||'',who:it.doneBy});const o=out[out.length-1];o.up=unitPrice(o.price,o.qty);}return out;}
 function searchBox(){const inp=el('input',{class:'field',id:'shopQ',type:'search',placeholder:'🔍 When did we last buy…','aria-label':'Search what you bought',value:ui.shopQ||'',
