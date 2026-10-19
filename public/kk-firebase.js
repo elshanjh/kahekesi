@@ -145,6 +145,9 @@ async function enter(user) {
   window.kkLocked = true;
   window.kkMe = me;
   window.kkUid = uid;
+  window.kkOwner = role === 'owner';
+  window.kkEmail = email;
+  window.kkSignOut = () => signOut(auth).then(() => location.reload(), () => location.reload());
   setDoc(doc(fs, 'users', uid), {email, me, updatedAt: Date.now()}, {merge: true}).catch(() => {});
   onSnapshot(doc(fs, 'config', 'main'), s => {
     const c = s.exists() ? s.data() : {};
@@ -213,7 +216,7 @@ function drawPush() {
   const o = other(me);
   const msg = el('p', {class: 'gmsg', style: 'text-align:left'});
   const perm = 'Notification' in window ? Notification.permission : 'unsupported';
-  const kids = [el('span', {text: 'Notifications on this device'})];
+  const kids = [];
   if (isIOS && !standalone) kids.push(el('p', {class: 'gmsg', style: 'text-align:left',
     text: 'On iPhone, notifications only work from the Home Screen app. In Safari tap Share, then "Add to Home Screen", open Kahekesi from there and turn them on.'}));
   else if (perm === 'unsupported') kids.push(el('p', {class: 'gmsg', style: 'text-align:left', text: 'This browser cannot show notifications.'}));
@@ -226,19 +229,24 @@ function drawPush() {
       await saveToken(); drawPush();
     } catch (e) { msg.textContent = 'Could not turn them on (' + (e.code || e.message) + ').'; }
   }}));
-  else kids.push(el('div', {class: 'r'}, el('span', {class: 'pill ok', text: 'On for this device'}),
+  else kids.push(el('div', {class: 'pstat'}, el('i', {class: 'dot'}), el('span', {text: 'On for this phone'}),
     el('button', {type: 'button', class: 'btn ghost small', text: 'Send a test', onclick: async () => {
       msg.textContent = 'Sending…';
       try { await saveToken(); await setDoc(doc(fs, 'users', uid), {testAt: Date.now()}, {merge: true}); msg.textContent = 'Sent. It should arrive in a few seconds.'; }
       catch (e) { msg.textContent = 'Could not send (' + (e.code || e.message) + ').'; }
     }})));
   kids.push(msg);
-  kids.push(el('span', {text: 'Tell me'}));
-  kids.push(...prefsList().map(([k, label]) => el('label', {class: 'pref'},
-    el('input', {type: 'checkbox', checked: prefs[k] !== false, onchange: e => {
-      prefs = Object.assign({}, prefs, {[k]: e.target.checked});
-      setDoc(doc(fs, 'users', uid), {prefs}, {merge: true}).catch(() => {});
-    }}), label(o))));
+  const mine = ['nudge', 'plan', 'morning', 'cycleStart', 'cycleLog'], groups = [['From ' + names[o], k => !mine.includes(k) && k !== 'goal'], ['Reminders for you', k => mine.includes(k)], ['Together', k => k === 'goal']];
+  for (const [title, has] of groups) {
+    const list = prefsList().filter(([k]) => has(k));
+    if (!list.length) continue;
+    kids.push(el('span', {class: 'pcap', text: title}));
+    kids.push(...list.map(([k, label]) => el('label', {class: 'pref'},
+      el('input', {type: 'checkbox', checked: prefs[k] !== false, onchange: e => {
+        prefs = Object.assign({}, prefs, {[k]: e.target.checked});
+        setDoc(doc(fs, 'users', uid), {prefs}, {merge: true}).catch(() => {});
+      }}), label(o))));
+  }
   box.replaceChildren(...kids);
 }
 function watchPrefs() {
@@ -257,11 +265,11 @@ function drawPeople() {
   const input = el('input', {class: 'field', type: 'email', placeholder: names.b + "'s email for signing in", 'aria-label': 'Email to add', style: 'flex:1'});
   const out = el('p', {class: 'gmsg', style: 'text-align:left'});
   box.replaceChildren(
-    el('span', {text: 'People who can open Kahekesi'}),
+    el('span', {class: 'pcap', text: 'These accounts can sign in'}),
     el('div', {class: 'plist'}, people.map(p => el('div', {class: 'step'},
       el('span', {text: p.email + ' · ' + names[p.me === 'b' ? 'b' : 'a']}),
       p.role === 'owner' ? null : el('button', {type: 'button', class: 'x', 'aria-label': 'Remove ' + p.email, text: '×', onclick: () => deleteDoc(doc(fs, 'allow', p.email)).catch(() => {})})))),
-    el('div', {class: 'r'}, input, el('button', {type: 'button', class: 'btn ghost small', text: 'Add as ' + names.b, onclick: async () => {
+    people.some(p => p.me === 'b') ? null : el('div', {class: 'r'}, input, el('button', {type: 'button', class: 'btn ghost small', text: 'Add as ' + names.b, onclick: async () => {
       const e = input.value.trim().toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { out.textContent = 'Type a full email address.'; return; }
       try { await setDoc(doc(fs, 'allow', e), {role: 'member', me: 'b', addedAt: Date.now()}); input.value = ''; out.textContent = 'Added. ' + names.b + ' can sign in now.'; }
