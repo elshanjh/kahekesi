@@ -1180,7 +1180,9 @@ function vShop(){
     searchBox(),tripsSection(),recentBought()];}
 // Search everything you have bought: when, where, how many and for how much.
 // Amounts like "2", "600 g", "1,5 kg", "2 l", "330 ml", "3 pcs". Weight goes to kg, volume to litres.
-function parseAmt(v){if(v==null||v==='')return null;const m=String(v).trim().toLowerCase().replace(',','.').match(/^(\d+(?:\.\d+)?)\s*(kg|kilo|g|gr|gram|grams|l|ltr|litre|liter|litres|liters|ml|cl|dl|pcs|pc|tk|x|×)?$/);
+function parseAmt(v){if(v==null||v==='')return null;
+  {const mm=String(v).trim().toLowerCase().replace(',','.').match(/^(\d+(?:\.\d+)?)\s*[x×*]\s*(\d.*)$/);if(mm){const one=parseAmt(mm[2]),k=parseFloat(mm[1]);if(one&&k>0)return {n:one.n*k,base:one.base*k,unit:one.unit,packs:k};}}
+  const m=String(v).trim().toLowerCase().replace(',','.').match(/^(\d+(?:\.\d+)?)\s*(kg|kilo|g|gr|gram|grams|l|ltr|litre|liter|litres|liters|ml|cl|dl|pcs|pc|tk|x|×)?$/);
   if(!m)return null;const n=parseFloat(m[1]),u=m[2]||'';if(!(n>0))return null;
   if(/^(kg|kilo)$/.test(u))return {n,base:n,unit:'kg'};if(/^(g|gr|gram|grams)$/.test(u))return {n,base:n/1000,unit:'kg'};
   if(/^(l|ltr|litre|liter|litres|liters)$/.test(u))return {n,base:n,unit:'l'};if(u==='ml')return {n,base:n/1000,unit:'l'};if(u==='cl')return {n,base:n/100,unit:'l'};if(u==='dl')return {n,base:n/10,unit:'l'};
@@ -1257,7 +1259,7 @@ function drawTrip(){const box=$('tripBody'),c=tripCands(),t=TR.id&&S.trips[TR.id
     el('label',{class:'f'},'Day',el('input',{class:'field',type:'date',max:today(),value:TR.date,onchange:e=>{TR.date=e.target.value||today();drawTrip();}})),
     el('div',{class:'fl'},'What you bought, prices are optional',el('div',{class:'tlist'},rows,xrows,addLine)),
     el('p',{class:'fmeta',id:'trSum',style:'margin:0',text:sum+xsum?'Items add up to '+eur(sum+xsum):''}),
-    el('p',{class:'fmeta',style:'margin:0;text-align:left',text:'Amount can be pieces (2) or a weight or volume (600 g, 1.5 kg, 2 l, 330 ml). With a price, the app works out the price per kg or litre so you can compare later.'}),
+    el('p',{class:'fmeta',style:'margin:0;text-align:left',text:'Amount can be pieces (2), a weight or volume (600 g, 1.5 kg, 2 l, 330 ml) or packs (2x250 g, 6x0.5 l). With a price, the app works out the price per kg or litre so you can compare later.'}),
     el('div',{class:'acts'},el('button',{class:'btn',text:t?'Save':'Save trip',onclick:saveTrip}),t?el('button',{class:'btn ghost danger',text:'Delete',onclick:e=>twoTap(e.currentTarget,()=>delTrip(t))}):null,el('button',{class:'btn ghost',text:'Cancel',onclick:hide}))].filter(Boolean));}
 async function saveTrip(){const c=tripCands(),chosen=c.filter(it=>TR.sel[it.id]);
   {const v=$('trNew')&&$('trNew').value.trim();if(v)TR.extra.push({t:v,price:$('trNewP').value});}
