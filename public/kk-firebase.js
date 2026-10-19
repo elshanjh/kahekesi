@@ -8,7 +8,7 @@ import {initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, brow
   sendEmailVerification, sendPasswordResetEmail, signOut} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, setDoc, updateDoc, deleteDoc,
   onSnapshot, getDoc} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
-import {getMessaging, getToken, isSupported} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging.js';
+import {getMessaging, getToken, deleteToken, isSupported} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging.js';
 
 const $ = id => document.getElementById(id);
 function el(tag, attrs, ...kids) {
@@ -206,8 +206,18 @@ async function saveToken() {
   try { localStorage.setItem('kahekesi.pushId', id); } catch (e) {}
   return token;
 }
+const pushOff = () => { try { return localStorage.getItem('kahekesi.pushOff') === '1'; } catch (e) { return false; } };
+function setPushOff(v) { try { v ? localStorage.setItem('kahekesi.pushOff', '1') : localStorage.removeItem('kahekesi.pushOff'); } catch (e) {} }
+async function stopPush() {
+  let id = null;
+  try { id = localStorage.getItem('kahekesi.pushId'); } catch (e) {}
+  setPushOff(true);
+  if (id && uid) await deleteDoc(doc(fs, 'users', uid, 'tokens', id)).catch(() => {});
+  try { await deleteToken(getMessaging(app)); } catch (e) {}
+  try { localStorage.removeItem('kahekesi.pushId'); } catch (e) {}
+}
 async function refreshToken() {
-  try { if ('Notification' in window && Notification.permission === 'granted') await saveToken(); } catch (e) {}
+  try { if ('Notification' in window && Notification.permission === 'granted' && !pushOff()) await saveToken(); } catch (e) {}
 }
 
 let prefs = {}, prefsUnsub = null;
@@ -221,20 +231,24 @@ function drawPush() {
     text: 'On iPhone, notifications only work from the Home Screen app. In Safari tap Share, then "Add to Home Screen", open Kahekesi from there and turn them on.'}));
   else if (perm === 'unsupported') kids.push(el('p', {class: 'gmsg', style: 'text-align:left', text: 'This browser cannot show notifications.'}));
   else if (perm === 'denied') kids.push(el('p', {class: 'gmsg', style: 'text-align:left', text: 'Notifications are blocked for Kahekesi. Allow them in the phone or browser settings, then reopen the app.'}));
-  else if (perm !== 'granted') kids.push(el('button', {type: 'button', class: 'btn', text: 'Turn on notifications', onclick: async () => {
+  else if (perm !== 'granted' || pushOff()) kids.push(el('div', {class: 'pstat'}, el('i', {class: 'dot off'}), el('span', {text: 'Off for this phone'}),
+    el('button', {type: 'button', class: 'btn small', text: 'Turn on', onclick: async () => {
     msg.textContent = 'One moment…';
     try {
-      const r = await Notification.requestPermission();
+      const r = perm === 'granted' ? 'granted' : await Notification.requestPermission();
+      setPushOff(false);
       if (r !== 'granted') { drawPush(); return; }
       await saveToken(); drawPush();
     } catch (e) { msg.textContent = 'Could not turn them on (' + (e.code || e.message) + ').'; }
-  }}));
+  }})));
   else kids.push(el('div', {class: 'pstat'}, el('i', {class: 'dot'}), el('span', {text: 'On for this phone'}),
     el('button', {type: 'button', class: 'btn ghost small', text: 'Send a test', onclick: async () => {
       msg.textContent = 'Sending…';
       try { await saveToken(); await setDoc(doc(fs, 'users', uid), {testAt: Date.now()}, {merge: true}); msg.textContent = 'Sent. It should arrive in a few seconds.'; }
       catch (e) { msg.textContent = 'Could not send (' + (e.code || e.message) + ').'; }
-    }})));
+    }}),
+    el('button', {type: 'button', class: 'btn ghost small', text: 'Turn off', onclick: async () => { msg.textContent = 'Turning off…'; await stopPush(); msg.textContent = ''; drawPush(); }})));
+  const sub = $('setPushSub'); if (sub) sub.textContent = perm === 'granted' && !pushOff() ? 'On for this phone' : 'Off for this phone';
   kids.push(msg);
   const mine = ['nudge', 'plan', 'morning', 'cycleStart', 'cycleLog'], groups = [['From ' + names[o], k => !mine.includes(k) && k !== 'goal'], ['Reminders for you', k => mine.includes(k)], ['Together', k => k === 'goal']];
   for (const [title, has] of groups) {
