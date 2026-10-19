@@ -331,7 +331,8 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .shead{display:flex;align-items:center;gap:8px}.shead>div{flex:1;min-width:0;display:flex;flex-direction:column}.shead small{color:var(--muted);font-size:12.5px}
 .slines{display:flex;flex-direction:column;gap:2px;font-size:13.5px;color:var(--muted)}
 .sline{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding-top:4px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}.sline span:last-child{color:var(--ink);font-weight:600}
-.tqty{flex:none;width:52px;min-height:38px;padding:6px 8px;text-align:center}
+.sbest{color:var(--b)!important;font-weight:600}
+.tqty{flex:none;width:74px;min-height:38px;padding:6px 8px;text-align:center}
 .tprice{flex:none;width:76px;min-height:38px;padding:6px 10px;text-align:right}
 .bdate{flex:none;width:auto;min-height:36px;padding:5px 8px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-size:14px;color:var(--ink)}
 .cycard{display:flex;flex-direction:column;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}
@@ -1156,6 +1157,7 @@ function vTodo(){
   const lowChip=el('div',{class:'tools'},el('button',{class:'chip','aria-pressed':String(ui.low),text:ui.low?'Low energy: showing quick tasks only':'Low energy? Show quick tasks only',onclick:()=>{ui.low=!ui.low;ls.set('low',ui.low?'1':'0');render();}}));
   return [seg,lowChip,key(),section(ui.low?'Quick to-dos':'To-dos',sorted(vis().filter(it=>it.kind==='todo'&&!it.done&&f(it)&&(!ui.low||isQuick(it)))).sort((x,y)=>(x.ord==null?-1:x.ord)-(y.ord==null?-1:y.ord)),'No open to-dos. Type one into the bar above.',true,null,true),
     done.length?section('Done today',done,'',false,done.length+' finished'):null];}
+const qclean=v=>{const t=String(v||'').trim().slice(0,20);return t?t:null;};
 const qnum=v=>{const n=parseFloat(String(v||'').replace(',','.'));return isFinite(n)&&n>0?Math.round(n*100)/100:null;};
 const eur=n=>'€'+(Math.round(n*100)/100).toFixed(2).replace(/\.00$/,'');
 const money=v=>{const n=parseFloat(String(v||'').replace(',','.').replace(/[^0-9.]/g,''));return isFinite(n)&&n>0?Math.round(n*100)/100:null;};
@@ -1177,8 +1179,17 @@ function vShop(){
       moreBtn(again,6,'againAll')):null,
     searchBox(),tripsSection(),recentBought()];}
 // Search everything you have bought: when, where, how many and for how much.
+// Amounts like "2", "600 g", "1,5 kg", "2 l", "330 ml", "3 pcs". Weight goes to kg, volume to litres.
+function parseAmt(v){if(v==null||v==='')return null;const m=String(v).trim().toLowerCase().replace(',','.').match(/^(\d+(?:\.\d+)?)\s*(kg|kilo|g|gr|gram|grams|l|ltr|litre|liter|litres|liters|ml|cl|dl|pcs|pc|tk|x|×)?$/);
+  if(!m)return null;const n=parseFloat(m[1]),u=m[2]||'';if(!(n>0))return null;
+  if(/^(kg|kilo)$/.test(u))return {n,base:n,unit:'kg'};if(/^(g|gr|gram|grams)$/.test(u))return {n,base:n/1000,unit:'kg'};
+  if(/^(l|ltr|litre|liter|litres|liters)$/.test(u))return {n,base:n,unit:'l'};if(u==='ml')return {n,base:n/1000,unit:'l'};if(u==='cl')return {n,base:n/100,unit:'l'};if(u==='dl')return {n,base:n/10,unit:'l'};
+  return {n,base:n,unit:'pc'};}
+const amtLabel=v=>{if(v==null||v==='')return '';const a=parseAmt(v);return a&&a.unit==='pc'&&/^\d+(\.\d+)?$/.test(String(v).trim().replace(',','.'))?a.n+'×':String(v).trim();};
+function unitPrice(price,v){const a=parseAmt(v);if(!price||!a)return null;if(a.unit==='pc'){if(a.n<=1)return null;return {per:price/a.n,unit:'each'};}return {per:price/a.base,unit:a.unit};}
+const upLabel=u=>u?eur(u.per)+(u.unit==='each'?' each':'/'+u.unit):'';
 function purchases(){const out=[];for(const it of items()){if(it.kind!=='shopping'||!it.done)continue;const t=it.tripId&&S.trips[it.tripId],x=t&&(t.items||[]).find(y=>y.id===it.id);
-  out.push({k:it.text.trim().toLowerCase(),text:it.text.trim(),at:it.doneAt||0,price:it.price||(x&&x.price)||null,qty:x&&x.qty||null,store:t&&t.store||'',who:it.doneBy});}return out;}
+  out.push({k:it.text.trim().toLowerCase(),text:it.text.trim(),at:it.doneAt||0,price:it.price||(x&&x.price)||null,qty:x&&x.qty!=null?x.qty:null,store:t&&t.store||'',who:it.doneBy});const o=out[out.length-1];o.up=unitPrice(o.price,o.qty);}return out;}
 function searchBox(){const inp=el('input',{class:'field',id:'shopQ',type:'search',placeholder:'🔍 When did we last buy…','aria-label':'Search what you bought',value:ui.shopQ||'',
     oninput:e=>{ui.shopQ=e.target.value;$('shopRes').replaceChildren(...searchResults());}});
   return el('section',{class:'sec'},inp,el('div',{id:'shopRes',class:'sres'},...searchResults()));}
@@ -1188,9 +1199,11 @@ function searchResults(){const q=(ui.shopQ||'').trim().toLowerCase();if(!q)retur
   const onList=t=>vis().some(it=>it.kind==='shopping'&&!it.done&&it.text.trim().toLowerCase()===t);
   if(!groups.length)return [el('p',{class:'empty',text:'Nothing called "'+ui.shopQ.trim()+'" bought yet.'})];
   return groups.map(l=>{const last=l[0],pr=l.find(p=>p.price);
-    return el('div',{class:'sgroup'},el('div',{class:'shead'},el('div',{},el('b',{text:last.text}),el('small',{text:'last bought '+boughtAgo(last.at)+(pr?' · '+eur(pr.price):'')+' · '+l.length+(l.length===1?' time':' times')})),
+    const ups=l.filter(p=>p.up),u0=ups.length?ups[0].up.unit:null,same=ups.filter(p=>p.up.unit===u0),best=same.length>1?same.reduce((a,b)=>b.up.per<a.up.per?b:a):null;
+    return el('div',{class:'sgroup'},el('div',{class:'shead'},el('div',{},el('b',{text:last.text}),el('small',{text:'last bought '+boughtAgo(last.at)+(pr?' · '+eur(pr.price):'')+(pr&&pr.up?' ('+upLabel(pr.up)+')':'')+' · '+l.length+(l.length===1?' time':' times')}),
+        best?el('small',{class:'sbest',text:'Cheapest: '+upLabel(best.up)+(best.store?' at '+best.store:'')+', '+boughtAgo(best.at)}):null),
         onList(last.k)?el('span',{class:'pill',text:'on the list'}):el('button',{class:'btn ghost small',text:'+ List',onclick:e=>{put('items',uid(),fresh(blank({text:last.text,kind:'shopping',owner:'both',points:5})));toast('Added '+last.text+'.');e.currentTarget.replaceWith(el('span',{class:'pill',text:'on the list'}));}})),
-      el('div',{class:'slines'},l.slice(0,5).map(p=>el('div',{class:'sline'},el('span',{text:fmtDay(ymd(new Date(p.at)))}),el('span',{text:[p.store,p.qty?p.qty+'×':null].filter(Boolean).join(' · ')}),el('span',{text:p.price?eur(p.price):''})))));});}
+      el('div',{class:'slines'},l.slice(0,5).map(p=>el('div',{class:'sline'},el('span',{text:fmtDay(ymd(new Date(p.at)))}),el('span',{text:[p.store,amtLabel(p.qty)||null].filter(Boolean).join(' · ')}),el('span',{text:p.price?eur(p.price)+(p.up?' · '+upLabel(p.up):''):''})))));});}
 // Recently bought: fix the date when something was ticked late, or put it back on the list.
 function recentBought(){const all=vis().filter(it=>it.kind==='shopping'&&it.done).sort((x,y)=>(y.doneAt||0)-(x.doneAt||0));
   if(!all.length)return null;
@@ -1224,13 +1237,13 @@ function drawTrip(){const box=$('tripBody'),c=tripCands(),t=TR.id&&S.trips[TR.id
   const rows=c.map(it=>el('div',{class:'trow'},
     el('button',{type:'button',class:'sitem tbox'+(TR.sel[it.id]?' on':''),'aria-pressed':String(!!TR.sel[it.id]),'aria-label':(TR.sel[it.id]?'Leave out ':'Include ')+it.text,onclick:()=>{TR.sel[it.id]=!TR.sel[it.id];drawTrip();}},el('i')),
     TR.sel[it.id]?el('input',{class:'field tname',maxlength:'60','aria-label':'Name','value':TR.name[it.id]!=null?TR.name[it.id]:it.text,oninput:e=>{TR.name[it.id]=e.target.value;}}):el('span',{class:'tname off',text:it.text}),
-    TR.sel[it.id]?el('input',{class:'field tqty',inputmode:'decimal',placeholder:'1×','aria-label':'How many '+it.text,value:TR.qty[it.id]||'',oninput:e=>{TR.qty[it.id]=e.target.value;}}):null,
+    TR.sel[it.id]?el('input',{class:'field tqty',placeholder:'1, 600 g, 2 l','aria-label':'How many '+it.text,value:TR.qty[it.id]||'',oninput:e=>{TR.qty[it.id]=e.target.value;}}):null,
     TR.sel[it.id]?el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+it.text,value:TR.price[it.id]||'',oninput:e=>{TR.price[it.id]=e.target.value;const h=$('trSum');if(h){const s2=c.filter(x=>TR.sel[x.id]).reduce((n,x)=>n+(money(TR.price[x.id])||0),0);const s3=s2+TR.extra.reduce((n,x)=>n+(money(x.price)||0),0);h.textContent=s3?'Items add up to '+eur(s3):'';}}}):null));
   const xsum=TR.extra.reduce((n,x)=>n+(money(x.price)||0),0);
   const xrows=TR.extra.map((x,i)=>el('div',{class:'trow'},
     el('button',{type:'button',class:'sitem tbox on','aria-pressed':'true','aria-label':'Remove '+x.t,onclick:()=>{TR.extra.splice(i,1);drawTrip();}},el('i')),
     el('input',{class:'field tname',maxlength:'60','aria-label':'Name',value:x.t,oninput:e=>{x.t=e.target.value;}}),
-    el('input',{class:'field tqty',inputmode:'decimal',placeholder:'1×','aria-label':'How many '+x.t,value:x.qty||'',oninput:e=>{x.qty=e.target.value;}}),
+    el('input',{class:'field tqty',placeholder:'1, 600 g, 2 l','aria-label':'How many '+x.t,value:x.qty||'',oninput:e=>{x.qty=e.target.value;}}),
     el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+x.t,value:x.price||'',oninput:e=>{x.price=e.target.value;}})));
   const nx=el('input',{class:'field',id:'trNew',maxlength:'60',placeholder:'Something you did not tick','aria-label':'Something else you bought',style:'flex:1;min-width:0'});
   const np=el('input',{class:'field tprice',id:'trNewP',inputmode:'decimal',placeholder:'€','aria-label':'Its price'});
@@ -1244,6 +1257,7 @@ function drawTrip(){const box=$('tripBody'),c=tripCands(),t=TR.id&&S.trips[TR.id
     el('label',{class:'f'},'Day',el('input',{class:'field',type:'date',max:today(),value:TR.date,onchange:e=>{TR.date=e.target.value||today();drawTrip();}})),
     el('div',{class:'fl'},'What you bought, prices are optional',el('div',{class:'tlist'},rows,xrows,addLine)),
     el('p',{class:'fmeta',id:'trSum',style:'margin:0',text:sum+xsum?'Items add up to '+eur(sum+xsum):''}),
+    el('p',{class:'fmeta',style:'margin:0;text-align:left',text:'Amount can be pieces (2) or a weight or volume (600 g, 1.5 kg, 2 l, 330 ml). With a price, the app works out the price per kg or litre so you can compare later.'}),
     el('div',{class:'acts'},el('button',{class:'btn',text:t?'Save':'Save trip',onclick:saveTrip}),t?el('button',{class:'btn ghost danger',text:'Delete',onclick:e=>twoTap(e.currentTarget,()=>delTrip(t))}):null,el('button',{class:'btn ghost',text:'Cancel',onclick:hide}))].filter(Boolean));}
 async function saveTrip(){const c=tripCands(),chosen=c.filter(it=>TR.sel[it.id]);
   {const v=$('trNew')&&$('trNew').value.trim();if(v)TR.extra.push({t:v,price:$('trNewP').value});}
@@ -1254,9 +1268,9 @@ async function saveTrip(){const c=tripCands(),chosen=c.filter(it=>TR.sel[it.id])
   const id=TR.id||uid(),extra=[];
   for(const x of TR.extra){if(!x.t.trim())continue;const k=x.t.trim().toLowerCase(),pr=money(x.price);
     const open=vis().find(it=>it.kind==='shopping'&&!it.done&&it.text.trim().toLowerCase()===k);
-    if(open){extra.push({id:open.id,text:open.text,price:pr,qty:qnum(x.qty),tick:true});}
-    else extra.push({id:uid(),text:x.t.trim(),price:pr,qty:qnum(x.qty),make:true});}
-  const data={who:TR.who||ui.me,at,store:TR.store.trim(),total,items:[...chosen.map(it=>({id:it.id,text:(TR.name[it.id]||it.text).trim()||it.text,price:money(TR.price[it.id]),qty:qnum(TR.qty[it.id])})),...extra.map(x=>({id:x.id,text:x.text,price:x.price,qty:x.qty}))],createdAt:old?old.createdAt:Date.now()};
+    if(open){extra.push({id:open.id,text:open.text,price:pr,qty:qclean(x.qty),tick:true});}
+    else extra.push({id:uid(),text:x.t.trim(),price:pr,qty:qclean(x.qty),make:true});}
+  const data={who:TR.who||ui.me,at,store:TR.store.trim(),total,items:[...chosen.map(it=>({id:it.id,text:(TR.name[it.id]||it.text).trim()||it.text,price:money(TR.price[it.id]),qty:qclean(TR.qty[it.id])})),...extra.map(x=>({id:x.id,text:x.text,price:x.price,qty:x.qty}))],createdAt:old?old.createdAt:Date.now()};
   hide();await put('trips',id,data);
   for(const it of chosen){const pr=money(TR.price[it.id]),nm=(TR.name[it.id]||it.text).trim()||it.text,up={};
     if(it.tripId!==id)up.tripId=id;if((it.price||null)!==pr)up.price=pr;if(it.doneBy!==data.who)up.doneBy=data.who;if(nm!==it.text)up.text=nm;if(Object.keys(up).length)await patch('items',it.id,up);}
