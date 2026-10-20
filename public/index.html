@@ -320,11 +320,12 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .dchip{position:relative;flex:none;display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;border:1.5px solid var(--line);font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}
 .dchip::after{content:"✎";font-size:12px;color:var(--muted)}
 .dchip input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;pointer-events:none}
-.rw.rem{padding:0 12px 0 0;gap:8px}.rw.rem .rtxt>span{flex:none}.rw.rem>.rmark{flex:none}.blog .rw.rem:first-child{border-top:0}.rtxt{flex:1;min-width:0;text-align:left;padding:10px 0;display:flex;flex-direction:column;font-size:16px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.rw.rem{padding:0 14px 0 0;gap:10px}.rw.rem .rtxt>span{flex:none}.rw.rem>.rmark{flex:none}.blog .rw.rem:first-child{border-top:0}.rtxt{flex:1;min-width:0;text-align:left;padding:10px 0;display:flex;flex-direction:column;font-size:16px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
 .rtxt small{font-size:13px;font-weight:500;color:var(--muted)}.rw.rem.late .rtxt small{color:var(--warn)}.rw.rem.ok .rtxt>span{color:var(--muted);text-decoration:line-through}.rw.rem.off{opacity:.6}
 .hint{font-size:12.5px;color:var(--muted);font-weight:400}
 .wdays{display:flex;gap:4px}.wdays button{flex:1;min-width:0;padding:9px 0;text-align:center;border-radius:10px;font-size:13px;font-weight:600;background:var(--sunk);color:var(--muted)}.wdays button[aria-pressed="true"]{background:var(--me);color:var(--on)}
-.rmark{flex:none;width:48px;text-align:center;font-size:18px;color:var(--muted)}.rpoke{flex:none;width:40px;height:40px;border-radius:12px;font-size:18px;background:var(--sunk)}.rpoke:disabled{opacity:.35}.rpoke:active{transform:scale(.9)}
+.rmark{flex:none;width:48px;text-align:center;font-size:18px;color:var(--muted)}.rpoke{flex:none;width:38px;height:38px;border-radius:50%;font-size:17px;background:transparent;border:1.5px solid var(--line);display:grid;place-items:center}
+.dchips .chip{padding:7px 12px}.dchips .chip[aria-pressed="true"]{background:var(--me);border-color:var(--me);color:var(--on)}.rpoke:disabled{opacity:.35}.rpoke:active{transform:scale(.9)}
 .rw.trip{width:100%;text-align:left;border-top:1px solid var(--line)}.blog .rw.trip:first-child{border-top:0}
 .tlist{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
 .trow{display:flex;align-items:center;gap:6px}.trow .sitem{flex:1;min-width:0}
@@ -1338,8 +1339,9 @@ const hmNow=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+
 const REVERY=[[0,'Just once'],[5,'Every 5 min'],[10,'Every 10 min'],[15,'Every 15 min'],[30,'Every 30 min'],[60,'Every hour'],[120,'Every 2 hours']];
 const evLabel=m=>{const e=REVERY.find(x=>x[0]===m);return e?e[1].toLowerCase():'every '+m+' min';};
 const remEvery=r=>r.every==null?60:r.every;
-function myRems(){return Object.values(S.rems).filter(r=>r.who===ui.me&&!remGone(r)).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
-function theirRems(){const o=other(ui.me);return Object.values(S.rems).filter(r=>r.who===o&&(r.from===ui.me||!r.priv)&&!remGone(r)).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
+const remKey=r=>(r.days==='date'?r.date:today())+' '+(r.time||'');
+function myRems(){return Object.values(S.rems).filter(r=>r.who===ui.me&&!remGone(r)).sort((a,b)=>remKey(a).localeCompare(remKey(b)));}
+function theirRems(){const o=other(ui.me);return Object.values(S.rems).filter(r=>r.who===o&&(r.from===ui.me||!r.priv)&&!remGone(r)).sort((a,b)=>remKey(a).localeCompare(remKey(b)));}
 function remState(r){const d=today();if(r.days==='date'&&r.date>d)return['wait',fmtDay(r.date)+' at '+r.time];if(!remOn(r,d))return['off','Not today'];if(r.doneOn===d)return['ok','Done today'];if(hmNow()>=r.time)return['late','Not done yet · '+r.time];return['wait','Today at '+r.time];}
 function remTick(r){const d=today();if(r.doneOn===d){patch('reminders',r.id,{doneOn:null,doneAt:null});return;}
   patch('reminders',r.id,{doneOn:d,doneAt:Date.now()});chime();toast('Done for today ✓');}
@@ -1371,9 +1373,15 @@ function drawRem(){const o=other(ui.me),r=RM.id&&S.rems[RM.id],canMove=!r;
   el('div',{class:'r'},el('label',{class:'f',style:'flex:1'},'First at',el('input',{class:'field',type:'time',value:RM.time,onchange:e=>{RM.time=e.target.value;}})),
     el('label',{class:'f',style:'flex:1'},'Stop at',el('input',{class:'field',type:'time',value:RM.until,onchange:e=>{RM.until=e.target.value||'22:00';}}))),
   el('label',{class:'f'},'If not ticked, remind again',el('select',{class:'field',onchange:e=>{RM.every=Number(e.target.value);}},REVERY.map(([v,l])=>el('option',{value:String(v),selected:RM.every===v,text:l})))),
-  el('label',{class:'f'},'Which days',el('select',{class:'field',onchange:e=>{RM.days=e.target.value;drawRem();}},Object.entries(RDAYS).map(([v,l])=>el('option',{value:v,selected:RM.days===v,text:l})))),
+  (()=>{const tm=addDays(today(),1),cur=RM.days!=='date'?RM.days:RM.date===today()?'today':RM.date===tm?'tom':'date';
+    const opt=(v,l,f)=>el('button',{type:'button',class:'chip','aria-pressed':String(cur===v),onclick:()=>{f();drawRem();}},l);
+    return el('div',{class:'fl'},'When',el('div',{class:'chips dchips'},
+      opt('today','Today',()=>{RM.days='date';RM.date=today();}),opt('tom','Tomorrow',()=>{RM.days='date';RM.date=tm;}),
+      opt('date','📅 A date',()=>{RM.days='date';if(RM.date<=tm)RM.date=addDays(today(),2);}),
+      opt('daily','Every day',()=>{RM.days='daily';}),opt('weekdays','Weekdays',()=>{RM.days='weekdays';}),opt('weekends','Weekends',()=>{RM.days='weekends';}),
+      opt('pick','Pick days',()=>{RM.days='pick';})));})(),
   RM.days==='pick'?el('div',{class:'wdays'},[1,2,3,4,5,6,0].map(w=>el('button',{type:'button','aria-pressed':String(RM.wd.includes(w)),text:WDN[w],onclick:e=>{RM.wd=RM.wd.includes(w)?RM.wd.filter(x=>x!==w):RM.wd.concat(w);e.currentTarget.setAttribute('aria-pressed',String(RM.wd.includes(w)));}}))):null,
-  RM.days==='date'?el('label',{class:'f'},'Day',el('input',{class:'field',type:'date',min:today(),value:RM.date,onchange:e=>{RM.date=e.target.value;}})):null,
+  RM.days==='date'&&RM.date>addDays(today(),1)?el('label',{class:'f'},'Day',el('input',{class:'field',type:'date',min:today(),value:RM.date,onchange:e=>{RM.date=e.target.value;},onclick:e=>{try{e.target.showPicker()}catch(x){}}})):null,
   RM.who===ui.me?el('label',{class:'pref'},el('input',{type:'checkbox',checked:RM.priv,onchange:e=>{RM.priv=e.target.checked;}}),'Only me, '+name(o)+" can't see it"):null,
   el('p',{class:'gmsg',style:'text-align:left',text:(RM.who===ui.me?'You get':name(RM.who)+' gets')+' a notification at the first time, then again until it is ticked. Nothing after the stop time. Nudges ignore the stop time.'}),
   el('div',{class:'acts'},el('button',{class:'btn',text:'Save',onclick:saveRem}),
