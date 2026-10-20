@@ -185,6 +185,22 @@ exports.reminders = onSchedule({schedule: 'every 5 minutes', timeZone: 'Europe/T
     await to(people, 'plan', {title: 'At ' + x.start + ': ' + x.text, body: x.owner === 'both' ? 'Together with ' + nm(c, other(people[0])) : 'Coming up soon', tag: 'plan-' + d.id, url: '/?tab=day'});
   }
 
+  // Daily reminders: a notification at their time, then one every hour until ticked. Nothing new after 22:00.
+  const wd = new Date(now.date + 'T12:00:00Z').getUTCDay();
+  const onDay = r => r.days === 'weekdays' ? wd > 0 && wd < 6 : r.days === 'weekends' ? wd === 0 || wd === 6 : true;
+  for (const d of (await db.collection('reminders').get()).docs) {
+    const r = d.data();
+    if (!r.text || !/^\d\d:\d\d$/.test(r.time || '') || (r.who !== 'a' && r.who !== 'b')) continue;
+    if (r.doneOn === now.date || now.hm < r.time || !onDay(r)) continue;
+    const first = r.nagDate !== now.date;
+    if (now.hm >= '22:00' && !(first && r.time >= '22:00')) continue;
+    if (!first && Date.now() - (r.nagAt || 0) < 58 * 60e3) continue;
+    await d.ref.update({nagDate: now.date, nagAt: Date.now()});
+    await to([r.who], 'rem', first
+      ? {title: '⏰ ' + r.text, body: 'Tick it in Kahekesi when it is done.', tag: 'rem-' + d.id, url: '/?tab=rem'}
+      : {title: 'Still to do: ' + r.text, body: 'Not ticked yet today. One tap and it is off your mind.', tag: 'rem-' + d.id, url: '/?tab=rem'});
+  }
+
   // Break nudges: when a planned break runs out and the app did not already nudge.
   // Shared breaks live in /breaks, private ones in /users/{uid}/breaks; a collection-group query covers both.
   const breaks = (await db.collectionGroup('breaks').where('end', '==', null).get()).docs;

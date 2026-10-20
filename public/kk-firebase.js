@@ -181,6 +181,7 @@ const prefsList = () => [
   ['nudge', () => 'When my break time is up'],
   ...(me === 'a' ? [['wish', o => 'When ' + names[o] + ' asks for something today'], ['cycle', o => 'Heads-up about ' + names[o] + "'s cycle"]]
     : [['wish', o => 'When ' + names[o] + ' answers your request'], ['cycleStart', () => 'When my period may start'], ['cycleLog', () => 'Evening check-in reminder on period days']]),
+  ['rem', () => 'My reminders, every hour until I tick them'],
   ['plan', () => '15 minutes before something you planned'],
   ['morning', () => 'Morning summary at 8:00'],
   ['goal', () => 'Shared goal reached and rewards redeemed'],
@@ -250,7 +251,7 @@ function drawPush() {
     el('button', {type: 'button', class: 'btn ghost small', text: 'Turn off', onclick: async () => { msg.textContent = 'Turning off…'; await stopPush(); msg.textContent = ''; drawPush(); }})));
   const sub = $('setPushSub'); if (sub) sub.textContent = perm === 'granted' && !pushOff() ? 'On for this phone' : 'Off for this phone';
   kids.push(msg);
-  const mine = ['nudge', 'plan', 'morning', 'cycleStart', 'cycleLog'], groups = [['From ' + names[o], k => !mine.includes(k) && k !== 'goal'], ['Reminders for you', k => mine.includes(k)], ['Together', k => k === 'goal']];
+  const mine = ['rem', 'nudge', 'plan', 'morning', 'cycleStart', 'cycleLog'], groups = [['From ' + names[o], k => !mine.includes(k) && k !== 'goal'], ['Reminders for you', k => mine.includes(k)], ['Together', k => k === 'goal']];
   for (const [title, has] of groups) {
     const list = prefsList().filter(([k]) => has(k));
     if (!list.length) continue;

@@ -320,6 +320,8 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .dchip{position:relative;flex:none;display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;border:1.5px solid var(--line);font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}
 .dchip::after{content:"✎";font-size:12px;color:var(--muted)}
 .dchip input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;pointer-events:none}
+.rw.rem{padding:0 14px 0 0;gap:0}.blog .rw.rem:first-child{border-top:0}.rtxt{flex:1;min-width:0;text-align:left;padding:10px 0;display:flex;flex-direction:column;font-size:16px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.rtxt small{font-size:13px;font-weight:500;color:var(--muted)}.rw.rem.late .rtxt small{color:var(--warn)}.rw.rem.ok .rtxt>span{color:var(--muted);text-decoration:line-through}.rw.rem.off{opacity:.6}
 .rw.trip{width:100%;text-align:left;border-top:1px solid var(--line)}.blog .rw.trip:first-child{border-top:0}
 .tlist{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
 .trow{display:flex;align-items:center;gap:6px}.trow .sitem{flex:1;min-width:0}
@@ -412,7 +414,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
     <button type="button" class="btn ghost" id="edMoreBtn" aria-expanded="false" aria-controls="edMore">More details</button>
     <div id="edMore" class="edmore" hidden>
     <label class="f">Where it goes<div class="seg" id="edKind">
-      <button type="button" data-v="inbox">Inbox</button><button type="button" data-v="todo">To-do</button><button type="button" data-v="shopping">Shopping</button><button type="button" data-v="idea">Idea</button></div></label>
+      <button type="button" data-v="inbox">Inbox</button><button type="button" data-v="todo">To-do</button><button type="button" data-v="shopping">Shopping</button></div></label>
     <div class="r">
       <label class="f">Category<select class="field" id="edCat"></select></label>
       <label class="f">Or a new one<input class="field" id="edCatNew" maxlength="20" placeholder="Type a name"></label>
@@ -485,6 +487,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
   <div class="sheet" id="cyDaySheet" hidden><div id="cyDayBody" style="display:flex;flex-direction:column;gap:10px"></div></div>
   <div class="sheet" id="wishSheet" hidden><div id="wishBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
   <div class="sheet" id="tripSheet" hidden><div id="tripBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
+  <div class="sheet" id="remSheet" hidden><div id="remBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
   <div class="sheet" id="breakSheet" hidden><div id="breakBody" style="display:flex;flex-direction:column;gap:14px"></div></div>
   <div class="sheet focus" id="focusSheet" hidden><div id="focusBody" style="display:flex;flex-direction:column;gap:16px;flex:1"></div></div>
 </div>
@@ -553,9 +556,9 @@ const span=it=>it.start?(it.start+(it.end?'–'+it.end:'')):'';
 
 /* ---------- state ---------- */
 const DEF={nameA:'Elshan',nameB:'Ayan',goalTitle:'',goalTarget:300,goalSince:0};
-const S={items:{},rewards:{},reds:{},status:{},breaks:{},trips:{},periods:{},cdays:{},share:{},wishes:{},ccfg:null,cfg:Object.assign({},DEF)};
+const S={rems:{},items:{},rewards:{},reds:{},status:{},breaks:{},trips:{},periods:{},cdays:{},share:{},wishes:{},ccfg:null,cfg:Object.assign({},DEF)};
 const stored=ls.get('me');
-const ui={tab:new URLSearchParams(location.search).get('tab')||'day',pose:Math.floor(Math.random()*1e6),calOpen:false,catsOpen:false,low:ls.get('low')==='1',
+const ui={tab:(t=>t==='idea'?'inbox':t)(new URLSearchParams(location.search).get('tab')||'day'),pose:Math.floor(Math.random()*1e6),calOpen:false,catsOpen:false,low:ls.get('low')==='1',
   me:stored==='b'?'b':'a',meKnown:stored==='a'||stored==='b',day:today(),month:today().slice(0,7),filter:'all',cat:'',shop:false,review:false,editId:null,sound:ls.get('sound')!=='off'};
 let db=null;
 if(location.search)try{history.replaceState(null,'','/')}catch(e){}
@@ -569,7 +572,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 
 /* ---------- storage ---------- */
 function fail(e){toast(e&&e.code==='invalid_argument'?'You have view-only access to this page.':e&&e.code==='quota_exceeded'?'Storage is full. Delete some old items.':'Could not save. Check your connection and try again.');}
-const KEY={items:'items',rewards:'rewards',redemptions:'reds',status:'status',breaks:'breaks',trips:'trips',wishes:'wishes'};
+const KEY={items:'items',rewards:'rewards',redemptions:'reds',status:'status',breaks:'breaks',trips:'trips',wishes:'wishes',reminders:'rems'};
 async function put(coll,id,data){if(db){try{await db.collection(coll).doc(id).set(data)}catch(e){fail(e)}}else{S[KEY[coll]][id]=Object.assign({id},data);render();}}
 async function patch(coll,id,data){if(db){try{await db.collection(coll).doc(id).update(data)}catch(e){fail(e)}}else{Object.assign(S[KEY[coll]][id],data);render();}}
 async function del(coll,id){if(db){try{await db.collection(coll).doc(id).delete()}catch(e){fail(e)}}else{delete S[KEY[coll]][id];render();}}
@@ -659,7 +662,7 @@ function gcal(text,date,start,end){if(!date)return null;const d=date.replace(/-/
 function blank(p){return Object.assign({text:'',kind:'todo',owner:ui.me,cat:'',date:null,start:null,end:null,repeat:'none',imp:0,urg:0,due:null,est:'',note:'',part:'',steps:[],points:10},p);}
 function fresh(it){return Object.assign({},it,{done:false,doneAt:null,doneBy:null,spawn:null,askedBy:null,ask:null,askHide:false,createdAt:Date.now(),createdBy:ui.me});}
 function addItem(text,cat){
-  const t=ui.tab;if(t==='day'){openEdit(null,{text,date:ui.day,cat:cat||''});return;}
+  const t=ui.tab;if(t==='rem'){openRem(null,text);return;}if(t==='day'){openEdit(null,{text,date:ui.day,cat:cat||''});return;}
   if(t==='todo'||t.slice(0,4)==='cat:'){openEdit(null,{text,kind:'todo',cat:cat||(t==='todo'?'':t.slice(4))});return;}
   const b=t==='shopping'?{kind:'shopping',owner:'both',points:5}:t==='todo'?{kind:'todo'}:t==='idea'?{kind:'idea'}:t.slice(0,4)==='cat:'?{kind:'todo',cat:t.slice(4)}:{kind:cat?'todo':'inbox'};
   if(cat)b.cat=cat;b.text=text;put('items',uid(),fresh(blank(b)));
@@ -1145,7 +1148,7 @@ function accept(it,plan){
   if(plan){openEdit(it.id);ui.accepting=true;$('edTitle').textContent='Add to your schedule';edMore(true);$('edSave').textContent='Accept and plan';if(!$('edDate').value)$('edDate').value=today();if(seg('edKind')==='inbox')seg('edKind','todo');calLink();return;}
   patch('items',it.id,{ask:'accepted',kind:it.kind==='inbox'?'todo':it.kind,askHide:false});toast('Added to your to-dos. '+name(it.askedBy)+' will see you accepted.');}
 function vInbox(){
-  const o=other(ui.me),list=vis().filter(it=>it.kind==='inbox'&&!it.done).sort(byNew),rq=reqs().sort(byNew),mine=asked().sort(byNew);
+  const o=other(ui.me),list=vis().filter(it=>(it.kind==='inbox'||it.kind==='idea')&&!it.done).sort(byNew),rq=reqs().sort(byNew),mine=asked().sort(byNew);
   const bits=it=>[it.date?fmtDay(it.date):null,span(it)||null,it.due?'due '+dayLow(it.due):null,it.est?'~'+it.est:null,it.urg>0?'urgent':null,it.imp>0?'important':null].filter(Boolean).join(' · ');
   const status=it=>it.ask==='pending'?['wait','Waiting for '+name(o)]:it.ask==='declined'?['urg',name(o)+' said not now']:it.done?['ok',name(o)+' finished it']:['ok',name(o)+' accepted'+(it.date?' · planned '+dayLow(it.date):' · on the to-do list')];
   return [scene('v'),
@@ -1321,6 +1324,35 @@ function boughtAgo(at){if(!at)return 'a while ago';const d=ymd(new Date(at)),t=t
   const n=Math.round((new Date(t+'T12:00')-new Date(d+'T12:00'))/864e5);if(n<14)return n+' days ago';if(n<60)return Math.round(n/7)+' weeks ago';
   const [y,m,dd]=d.split('-').map(Number);return 'on '+new Date(y,m-1,dd).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:y===new Date().getFullYear()?undefined:'numeric'});}
 function lastBought(text){const k=text.trim().toLowerCase();let at=0;for(const it of items())if(it.kind==='shopping'&&it.done&&it.doneAt>at&&it.text.trim().toLowerCase()===k)at=it.doneAt;return at;}
+const RDAYS={daily:'Every day',weekdays:'Weekdays',weekends:'Weekends'};
+const remOn=(r,d)=>{const w=new Date(d+'T12:00').getDay();return r.days==='weekdays'?w>0&&w<6:r.days==='weekends'?w===0||w===6:true;};
+const hmNow=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+function myRems(){return Object.values(S.rems).filter(r=>r.who===ui.me).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
+function remState(r){const d=today();if(!remOn(r,d))return['off','Not today'];if(r.doneOn===d)return['ok','Done today'];if(hmNow()>=r.time)return['late','Not done yet · '+r.time];return['wait','Today at '+r.time];}
+function remTick(r){const d=today();if(r.doneOn===d){patch('reminders',r.id,{doneOn:null,doneAt:null});return;}
+  patch('reminders',r.id,{doneOn:d,doneAt:Date.now()});chime();toast('Done for today ✓');}
+function vRem(){const l=myRems(),late=l.filter(r=>remState(r)[0]==='late').length;
+  return [el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Reminders'}),el('span',{text:late?late+' not done yet':l.length?'All good today':''})),
+    l.length?el('div',{class:'blog'},l.map(r=>{const [k,txt]=remState(r);return el('div',{class:'rw rem '+k},
+      el('button',{class:'check'+(k==='ok'?' on':''),'aria-pressed':String(k==='ok'),'aria-label':(k==='ok'?'Not done: ':'Done: ')+r.text,onclick:()=>remTick(r)},el('i')),
+      el('button',{class:'rtxt','aria-label':'Edit: '+r.text,onclick:()=>openRem(r.id)},el('span',{text:r.text}),el('small',{text:txt+' · '+RDAYS[r.days||'daily']})));})):
+      el('p',{class:'empty',text:'For small daily things like vitamins or the Wordle. Type one into the bar above and pick a time. If it is not ticked by then, you get a nudge every hour. No points, just a nudge.'}),
+    el('button',{class:'btn ghost small',style:'align-self:flex-start;margin-top:10px',text:'+ New reminder',onclick:()=>openRem(null)}))];}
+const RM={id:null,text:'',time:'09:00',days:'daily'};
+function openRem(id,text){const r=id&&S.rems[id],h=String((new Date().getHours()+1)%24).padStart(2,'0')+':00';
+  Object.assign(RM,{id:id||null,text:r?r.text:(text||''),time:r?r.time:h,days:r?r.days||'daily':'daily'});drawRem();show('remSheet');if(!RM.text)setTimeout(()=>$('remText')&&$('remText').focus(),50);}
+function drawRem(){$('remBody').replaceChildren(el('h2',{text:RM.id?'Edit reminder':'New reminder'}),
+  el('label',{class:'f'},'What',el('input',{class:'field',id:'remText',maxlength:'80',placeholder:'Take vitamins',value:RM.text,oninput:e=>{RM.text=e.target.value;}})),
+  el('label',{class:'f'},'At',el('input',{class:'field',type:'time',value:RM.time,onchange:e=>{RM.time=e.target.value;}})),
+  el('label',{class:'f'},'Which days',el('div',{class:'seg'},Object.entries(RDAYS).map(([v,l])=>el('button',{type:'button','aria-pressed':String(RM.days===v),text:l,onclick:()=>{RM.days=v;drawRem();}})))),
+  el('p',{class:'gmsg',style:'text-align:left',text:'If it is not ticked by this time, you get a notification, then one every hour until you tick it. Nothing after 22:00.'}),
+  el('div',{class:'acts'},el('button',{class:'btn',text:'Save',onclick:saveRem}),
+    RM.id?el('button',{class:'btn ghost danger',text:'Delete',onclick:()=>{const id=RM.id;hide();del('reminders',id);}}):null,
+    el('button',{class:'btn ghost','data-close':'',text:'Cancel'})));}
+function saveRem(){const text=RM.text.trim(),time=RM.time;if(!text){$('remText').focus();return;}if(!/^\d\d:\d\d$/.test(time||''))return;
+  const data={text,time,days:RM.days};hide();
+  if(RM.id)patch('reminders',RM.id,data);else put('reminders',uid(),Object.assign(data,{who:ui.me,doneOn:null,createdAt:Date.now()}));
+  if(ui.tab!=='rem')go('rem');}
 function vIdea(){return [section('Ideas to look into',sorted(vis().filter(it=>it.kind==='idea'&&!it.done)),'No ideas parked yet. Type one into the bar above.',true)];}
 function vCat(c){const done=doneNow(it=>it.cat===c);
   return [key(),section(c,sorted(vis().filter(it=>it.cat===c&&!it.done)),'Nothing open in '+c+'. Type into the bar above to add something here.',true),
@@ -1412,7 +1444,7 @@ function twoTap(btn,fn){if(btn.dataset.sure){fn();return;}btn.dataset.sure='1';c
   setTimeout(()=>{if(btn.isConnected){delete btn.dataset.sure;btn.textContent=old;if(btn.classList.contains('x'))btn.classList.remove('danger');}},2500);}
 
 /* ---------- render ---------- */
-const VIEWS={inbox:['Inbox','Something on your mind? Drop it here'],day:['Schedule',''],todo:['To-dos','New to-do, then set the details…'],shopping:['Shopping','Add to the shopping list…'],idea:['Ideas','Park an idea…'],rewards:['Rewards','Something on your mind? Drop it here'],review:['Weekly review','Something on your mind? Drop it here'],cycle:['Cycle','Something on your mind? Drop it here'],activity:['Activity','Something on your mind? Drop it here']};
+const VIEWS={inbox:['Inbox','Something on your mind? Drop it here'],day:['Schedule',''],todo:['To-dos','New to-do, then set the details…'],shopping:['Shopping','Add to the shopping list…'],rem:['Reminders','New reminder, like Take vitamins…'],rewards:['Rewards','Something on your mind? Drop it here'],review:['Weekly review','Something on your mind? Drop it here'],cycle:['Cycle','Something on your mind? Drop it here'],activity:['Activity','Something on your mind? Drop it here']};
 const told=new Set();
 /* ---------- phone back button: pages, open windows and the side menu go into the browser history ---------- */
 const hs=()=>history.state||{};
@@ -1444,11 +1476,11 @@ function render(){
   const dn=doneToday('a')+doneToday('b'),sk=streak();$('face').className='face '+(!dn?'sleepy':sk>=3?'playful':'awake');
   const all=vis(),n=f=>all.filter(i=>!i.done&&f(i)).length;
   const nb=(id,label,count,h,cls)=>el('button',{class:'nav'+(cls?' '+cls:''),'aria-current':ui.tab===id?'page':null,onclick:()=>go(id)},h!=null?el('i',{style:'--h:'+h}):null,el('span',{text:label}),count?el('b',{text:String(count)}):null);
-  const cnt={inbox:n(i=>i.kind==='inbox')+reqs().length+asked().filter(i=>i.ask!=='pending').length,todo:n(i=>i.kind==='todo'),day:n(i=>i.date===today()||i.due===today()),shopping:n(i=>i.kind==='shopping')};
+  const cnt={inbox:n(i=>i.kind==='inbox'||i.kind==='idea')+reqs().length+asked().filter(i=>i.ask!=='pending').length,todo:n(i=>i.kind==='todo'),day:n(i=>i.date===today()||i.due===today()),shopping:n(i=>i.kind==='shopping')};
   const showCats=ui.catsOpen||isCat;
   $('nav').replaceChildren(
     nb('day','Schedule',cnt.day,null,'main'),nb('inbox','Inbox',cnt.inbox,null,'main'),
-    el('h3',{class:'main',text:'Lists'}),nb('todo','To-dos',cnt.todo,null,'main'),nb('shopping','Shopping',cnt.shopping,null,'main'),nb('idea','Ideas',n(i=>i.kind==='idea')),
+    el('h3',{class:'main',text:'Lists'}),nb('todo','To-dos',cnt.todo,null,'main'),nb('shopping','Shopping',cnt.shopping,null,'main'),nb('rem','Reminders',myRems().filter(r=>remState(r)[0]==='late').length),
     nb('rewards','Rewards',balance(ui.me)+' pts'),nb('cycle',ui.me===TRACKER?'Cycle':name(TRACKER)+"'s cycle",null),nb('activity','Activity',null),nb('review','Weekly review',n(i=>(i.date&&i.date<today())||(i.due&&i.due<today()))),
     el('button',{class:'nav grp','aria-expanded':String(showCats),onclick:()=>{ui.catsOpen=!showCats;if(isCat&&showCats)ui.tab='todo';render();}},el('span',{text:'Categories'}),el('b',{text:showCats?'Hide':'Show '+cats().length})),
     ...(showCats?cats().map(c=>nb('cat:'+c,c,n(i=>i.cat===c),hue(c))):[]));
@@ -1464,7 +1496,7 @@ function render(){
   capChips();drawCats();syncShare();
   const focus=document.activeElement&&document.activeElement.id;
   if(ui.tab==='rewards'&&$('rwTitle')&&!draft)draft={t:$('rwTitle').value,c:$('rwCost').value};
-  const t=ui.tab,built=t==='inbox'?vInbox():t==='todo'?vTodo():t==='shopping'?vShop():t==='idea'?vIdea():t==='day'?vDay():t==='review'?vReview():t==='activity'?vActivity():t==='cycle'?vCycle():isCat?vCat(cur):vRewards();
+  const t=ui.tab,built=t==='inbox'?vInbox():t==='todo'?vTodo():t==='shopping'?vShop():t==='rem'?vRem():t==='day'?vDay():t==='review'?vReview():t==='activity'?vActivity():t==='cycle'?vCycle():isCat?vCat(cur):vRewards();
   draft=null;
   const sy=window.scrollY;$('view').replaceChildren(...built.filter(Boolean));if(Math.abs(window.scrollY-sy)>1)window.scrollTo(0,sy);
   if((focus==='rwTitle'||focus==='rwCost'||focus==='shopQ')&&$(focus)){const f=$(focus);f.focus();if(focus==='shopQ')try{f.setSelectionRange(f.value.length,f.value.length)}catch(e){}}
@@ -1572,7 +1604,7 @@ render();
   try{db=await new Promise(r=>{if(window.kkDb!==undefined)r(window.kkDb);else window.addEventListener('kk-db',e=>r(e.detail),{once:true});});}catch(e){db=null;}
   if(!db){$('offNote').hidden=false;return;}
   if(window.kkMe==='a'||window.kkMe==='b'){ui.me=window.kkMe;ui.meKnown=true;ls.set('me',ui.me);}
-  sub('items');sub('rewards');sub('redemptions');sub('status');subBreaks();sub('trips');sub('wishes');subCycle();
+  sub('items');sub('rewards');sub('redemptions');sub('status');subBreaks();sub('trips');sub('wishes');sub('reminders');subCycle();
   db.doc('config/main').onSnapshot(s=>{S.cfg=Object.assign({},DEF,s.exists?s.data():{});render();},()=>{});
 })();
 })();
