@@ -320,8 +320,10 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .dchip{position:relative;flex:none;display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;border:1.5px solid var(--line);font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}
 .dchip::after{content:"✎";font-size:12px;color:var(--muted)}
 .dchip input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;pointer-events:none}
-.rw.rem{padding:0 14px 0 0;gap:0}.blog .rw.rem:first-child{border-top:0}.rtxt{flex:1;min-width:0;text-align:left;padding:10px 0;display:flex;flex-direction:column;font-size:16px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.rw.rem{padding:0 12px 0 0;gap:8px}.rw.rem .rtxt>span{flex:none}.rw.rem>.rmark{flex:none}.blog .rw.rem:first-child{border-top:0}.rtxt{flex:1;min-width:0;text-align:left;padding:10px 0;display:flex;flex-direction:column;font-size:16px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
 .rtxt small{font-size:13px;font-weight:500;color:var(--muted)}.rw.rem.late .rtxt small{color:var(--warn)}.rw.rem.ok .rtxt>span{color:var(--muted);text-decoration:line-through}.rw.rem.off{opacity:.6}
+.hint{font-size:12.5px;color:var(--muted);font-weight:400}
+.wdays{display:flex;gap:4px}.wdays button{flex:1;min-width:0;padding:9px 0;text-align:center;border-radius:10px;font-size:13px;font-weight:600;background:var(--sunk);color:var(--muted)}.wdays button[aria-pressed="true"]{background:var(--me);color:var(--on)}
 .rmark{flex:none;width:48px;text-align:center;font-size:18px;color:var(--muted)}.rpoke{flex:none;width:40px;height:40px;border-radius:12px;font-size:18px;background:var(--sunk)}.rpoke:disabled{opacity:.35}.rpoke:active{transform:scale(.9)}
 .rw.trip{width:100%;text-align:left;border-top:1px solid var(--line)}.blog .rw.trip:first-child{border-top:0}
 .tlist{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
@@ -424,6 +426,9 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
       <label class="f">From<input class="field" type="time" id="edStart"></label>
       <label class="f">To<input class="field" type="time" id="edEnd"></label>
     </div>
+    <div class="fl">🔔 Remind me<div class="r"><input class="field" type="date" id="edRemD" aria-label="Reminder day" style="flex:1.3;min-width:0"><input class="field" type="time" id="edRemT" aria-label="Reminder time" style="flex:1;min-width:0"></div>
+      <div class="r"><select class="field" id="edRemE" aria-label="Remind again" style="flex:1"><option value="0">Just once</option><option value="5">Again every 5 min</option><option value="10">Again every 10 min</option><option value="15">Again every 15 min</option><option value="30">Again every 30 min</option><option value="60">Again every hour</option><option value="120">Again every 2 hours</option></select><button type="button" class="btn ghost small" id="edRemNone">No reminder</button></div>
+      <small class="hint">Until it is ticked. Nothing new after 22:00.</small></div>
     <label class="f">Part of the day, if there is no exact time<div class="seg" id="edPart">
       <button type="button" data-v="">Any time</button><button type="button" data-v="morning">Morning</button><button type="button" data-v="afternoon">Afternoon</button><button type="button" data-v="evening">Evening</button></div></label>
     <label class="f">Deadline<input class="field" type="date" id="edDue"></label>
@@ -1325,24 +1330,26 @@ function boughtAgo(at){if(!at)return 'a while ago';const d=ymd(new Date(at)),t=t
   const n=Math.round((new Date(t+'T12:00')-new Date(d+'T12:00'))/864e5);if(n<14)return n+' days ago';if(n<60)return Math.round(n/7)+' weeks ago';
   const [y,m,dd]=d.split('-').map(Number);return 'on '+new Date(y,m-1,dd).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:y===new Date().getFullYear()?undefined:'numeric'});}
 function lastBought(text){const k=text.trim().toLowerCase();let at=0;for(const it of items())if(it.kind==='shopping'&&it.done&&it.doneAt>at&&it.text.trim().toLowerCase()===k)at=it.doneAt;return at;}
-const RDAYS={daily:'Every day',weekdays:'Weekdays',weekends:'Weekends'};
-const remOn=(r,d)=>{const w=new Date(d+'T12:00').getDay();return r.days==='weekdays'?w>0&&w<6:r.days==='weekends'?w===0||w===6:true;};
+const RDAYS={daily:'Every day',weekdays:'Weekdays',weekends:'Weekends',pick:'Pick days',date:'One day only'},WDN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const daysLabel=r=>r.days==='pick'?(r.wd||[]).slice().sort((a,b)=>(a||7)-(b||7)).map(w=>WDN[w]).join(', ')||'No days':r.days==='date'?'Only '+fmtDay(r.date).replace(/^(Today|Tomorrow)$/,m=>m.toLowerCase()):RDAYS[r.days||'daily'];
+const remOn=(r,d)=>{const w=new Date(d+'T12:00').getDay();return r.days==='date'?r.date===d:r.days==='pick'?(r.wd||[]).includes(w):r.days==='weekdays'?w>0&&w<6:r.days==='weekends'?w===0||w===6:true;};
+const remGone=r=>r.days==='date'&&r.date<today();
 const hmNow=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 const REVERY=[[0,'Just once'],[5,'Every 5 min'],[10,'Every 10 min'],[15,'Every 15 min'],[30,'Every 30 min'],[60,'Every hour'],[120,'Every 2 hours']];
 const evLabel=m=>{const e=REVERY.find(x=>x[0]===m);return e?e[1].toLowerCase():'every '+m+' min';};
 const remEvery=r=>r.every==null?60:r.every;
-function myRems(){return Object.values(S.rems).filter(r=>r.who===ui.me).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
-function theirRems(){const o=other(ui.me);return Object.values(S.rems).filter(r=>r.who===o&&(r.from===ui.me||!r.priv)).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
-function remState(r){const d=today();if(!remOn(r,d))return['off','Not today'];if(r.doneOn===d)return['ok','Done today'];if(hmNow()>=r.time)return['late','Not done yet · '+r.time];return['wait','Today at '+r.time];}
+function myRems(){return Object.values(S.rems).filter(r=>r.who===ui.me&&!remGone(r)).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
+function theirRems(){const o=other(ui.me);return Object.values(S.rems).filter(r=>r.who===o&&(r.from===ui.me||!r.priv)&&!remGone(r)).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
+function remState(r){const d=today();if(r.days==='date'&&r.date>d)return['wait',fmtDay(r.date)+' at '+r.time];if(!remOn(r,d))return['off','Not today'];if(r.doneOn===d)return['ok','Done today'];if(hmNow()>=r.time)return['late','Not done yet · '+r.time];return['wait','Today at '+r.time];}
 function remTick(r){const d=today();if(r.doneOn===d){patch('reminders',r.id,{doneOn:null,doneAt:null});return;}
   patch('reminders',r.id,{doneOn:d,doneAt:Date.now()});chime();toast('Done for today ✓');}
 function remPoke(r){const p=r.poke;if(p&&p.by===ui.me&&Date.now()-p.at<60e3){toast('Sent a moment ago. Give it a minute.');return;}
   patch('reminders',r.id,{poke:{by:ui.me,at:Date.now()}});toast('Sent to '+name(r.who)+' 👉');}
-function remRow(r,mine){const [k,txt]=remState(r),sub=[txt,RDAYS[r.days||'daily'],remEvery(r)?'repeats '+evLabel(remEvery(r)):'once'];
+function remRow(r,mine){const [k,txt]=remState(r),sub=[txt,r.days==='date'?null:daysLabel(r),remEvery(r)?'repeats '+evLabel(remEvery(r)):'once'];
   if(mine&&r.from&&r.from!==r.who)sub.push('from '+name(r.from));if(!mine&&r.from===ui.me)sub.push('set by you');
   return el('div',{class:'rw rem '+k},
     mine?el('button',{class:'check'+(k==='ok'?' on':''),'aria-pressed':String(k==='ok'),'aria-label':(k==='ok'?'Not done: ':'Done: ')+r.text,onclick:()=>remTick(r)},el('i')):el('span',{class:'rmark',text:k==='ok'?'✓':'⏰'}),
-    el('button',{class:'rtxt','aria-label':'Edit: '+r.text,onclick:()=>openRem(r.id)},el('span',{text:r.text}),el('small',{text:sub.join(' · ')})),
+    el('button',{class:'rtxt','aria-label':'Edit: '+r.text,onclick:()=>openRem(r.id)},el('span',{text:r.text}),el('small',{text:sub.filter(Boolean).join(' · ')})),
     el('button',{class:'rpoke',disabled:k==='ok','aria-label':'Send a nudge now: '+r.text,title:'Send a nudge now',onclick:()=>mine?remSelf(r):remPoke(r)},mine?'🔔':'👉'));}
 function remSelf(r){patch('reminders',r.id,{poke:{by:ui.me,at:Date.now()}});toast('Sending it to your phone now');}
 function vRem(){const l=myRems(),t=theirRems(),o=other(ui.me),late=l.filter(r=>remState(r)[0]==='late').length;
@@ -1353,25 +1360,29 @@ function vRem(){const l=myRems(),t=theirRems(),o=other(ui.me),late=l.filter(r=>r
     el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:name(o)+"'s reminders"}),el('span',{text:t.length?'👉 sends a nudge':''})),
       t.length?el('div',{class:'blog'},t.map(r=>remRow(r,false))):el('p',{class:'empty',text:'Nothing here yet. You can set a reminder for '+name(o)+' too.'}),
       el('button',{class:'btn ghost small',style:'align-self:flex-start;margin-top:10px',text:'+ Reminder for '+name(o),onclick:()=>openRem(null,'',o)}))];}
-const RM={id:null,text:'',time:'09:00',days:'daily',who:'a',every:60,until:'22:00',priv:false};
+const RM={id:null,text:'',time:'09:00',days:'daily',wd:[],date:'',who:'a',every:60,until:'22:00',priv:false};
 function openRem(id,text,who){const r=id&&S.rems[id],h=String((new Date().getHours()+1)%24).padStart(2,'0')+':00';
-  Object.assign(RM,r?{id,text:r.text,time:r.time,days:r.days||'daily',who:r.who,every:remEvery(r),until:r.until||'22:00',priv:!!r.priv}:{id:null,text:text||'',time:h,days:'daily',who:who||ui.me,every:60,until:'22:00',priv:false});
+  Object.assign(RM,r?{id,text:r.text,time:r.time,days:r.days||'daily',wd:(r.wd||[]).slice(),date:r.date||today(),who:r.who,every:remEvery(r),until:r.until||'22:00',priv:!!r.priv}:{id:null,text:text||'',time:h,days:'daily',wd:[new Date().getDay()],date:today(),who:who||ui.me,every:60,until:'22:00',priv:false});
   drawRem();show('remSheet');if(!RM.text)setTimeout(()=>$('remText')&&$('remText').focus(),50);}
 function drawRem(){const o=other(ui.me),r=RM.id&&S.rems[RM.id],canMove=!r;
-  $('remBody').replaceChildren(el('h2',{text:RM.id?'Edit reminder':RM.who===ui.me?'New reminder':'Reminder for '+name(RM.who)}),
+  $('remBody').replaceChildren(...[el('h2',{text:RM.id?'Edit reminder':RM.who===ui.me?'New reminder':'Reminder for '+name(RM.who)}),
   el('label',{class:'f'},'What',el('input',{class:'field',id:'remText',maxlength:'80',placeholder:'Take vitamins',value:RM.text,oninput:e=>{RM.text=e.target.value;}})),
   canMove?el('label',{class:'f'},'For',el('div',{class:'seg'},[[ui.me,'Me'],[o,name(o)]].map(([v,l])=>el('button',{type:'button','aria-pressed':String(RM.who===v),text:l,onclick:()=>{RM.who=v;drawRem();}})))):null,
   el('div',{class:'r'},el('label',{class:'f',style:'flex:1'},'First at',el('input',{class:'field',type:'time',value:RM.time,onchange:e=>{RM.time=e.target.value;}})),
     el('label',{class:'f',style:'flex:1'},'Stop at',el('input',{class:'field',type:'time',value:RM.until,onchange:e=>{RM.until=e.target.value||'22:00';}}))),
   el('label',{class:'f'},'If not ticked, remind again',el('select',{class:'field',onchange:e=>{RM.every=Number(e.target.value);}},REVERY.map(([v,l])=>el('option',{value:String(v),selected:RM.every===v,text:l})))),
-  el('label',{class:'f'},'Which days',el('div',{class:'seg'},Object.entries(RDAYS).map(([v,l])=>el('button',{type:'button','aria-pressed':String(RM.days===v),text:l,onclick:()=>{RM.days=v;drawRem();}})))),
+  el('label',{class:'f'},'Which days',el('select',{class:'field',onchange:e=>{RM.days=e.target.value;drawRem();}},Object.entries(RDAYS).map(([v,l])=>el('option',{value:v,selected:RM.days===v,text:l})))),
+  RM.days==='pick'?el('div',{class:'wdays'},[1,2,3,4,5,6,0].map(w=>el('button',{type:'button','aria-pressed':String(RM.wd.includes(w)),text:WDN[w],onclick:e=>{RM.wd=RM.wd.includes(w)?RM.wd.filter(x=>x!==w):RM.wd.concat(w);e.currentTarget.setAttribute('aria-pressed',String(RM.wd.includes(w)));}}))):null,
+  RM.days==='date'?el('label',{class:'f'},'Day',el('input',{class:'field',type:'date',min:today(),value:RM.date,onchange:e=>{RM.date=e.target.value;}})):null,
   RM.who===ui.me?el('label',{class:'pref'},el('input',{type:'checkbox',checked:RM.priv,onchange:e=>{RM.priv=e.target.checked;}}),'Only me, '+name(o)+" can't see it"):null,
   el('p',{class:'gmsg',style:'text-align:left',text:(RM.who===ui.me?'You get':name(RM.who)+' gets')+' a notification at the first time, then again until it is ticked. Nothing after the stop time. Nudges ignore the stop time.'}),
   el('div',{class:'acts'},el('button',{class:'btn',text:'Save',onclick:saveRem}),
     RM.id?el('button',{class:'btn ghost danger',text:'Delete',onclick:()=>{const id=RM.id;hide();del('reminders',id);}}):null,
-    el('button',{class:'btn ghost','data-close':'',text:'Cancel'})));}
+    el('button',{class:'btn ghost','data-close':'',text:'Cancel'}))].filter(Boolean));}
 function saveRem(){const text=RM.text.trim(),time=RM.time;if(!text){$('remText').focus();return;}if(!/^\d\d:\d\d$/.test(time||''))return;
-  const data={text,time,days:RM.days,every:RM.every,until:/^\d\d:\d\d$/.test(RM.until)?RM.until:'22:00',priv:RM.who===ui.me&&RM.priv};hide();
+  if(RM.days==='pick'&&!RM.wd.length){toast('Pick at least one day.');return;}if(RM.days==='date'&&!RM.date){toast('Pick a day.');return;}
+  const data={text,time,days:RM.days,wd:RM.days==='pick'?RM.wd:null,date:RM.days==='date'?RM.date:null,every:RM.every,until:/^\d\d:\d\d$/.test(RM.until)?RM.until:'22:00',priv:RM.who===ui.me&&RM.priv};hide();
+  const pr=RM.id&&S.rems[RM.id];if(pr&&(pr.time!==data.time||pr.days!==data.days||pr.date!==data.date))data.nagDate=null;
   if(RM.id)patch('reminders',RM.id,data);else{put('reminders',uid(),Object.assign(data,{who:RM.who,from:ui.me,doneOn:null,createdAt:Date.now()}));if(RM.who!==ui.me)toast(name(RM.who)+' will get it at '+time);}
   if(ui.tab!=='rem')go('rem');}
 function vIdea(){return [section('Ideas to look into',sorted(vis().filter(it=>it.kind==='idea'&&!it.done)),'No ideas parked yet. Type one into the bar above.',true)];}
@@ -1538,7 +1549,7 @@ function openEdit(id,preset){const it=id?S.items[id]:blank(preset);if(!it)return
   $('edTitle').textContent=id?'Edit item':'New item';$('edSave').textContent=id?'Save':'Add';$('edDel').hidden=!id;
   $('edText').value=it.text;seg('edKind',it.kind);for(const b of [...$('edOwner').children].slice(0,2))b.textContent=b.dataset.v===ui.me?'Just me':'For '+name(b.dataset.v);seg('edOwner',it.owner);
   {const cs=cats().concat(it.cat&&!cats().includes(it.cat)?[it.cat]:[]);$('edCat').replaceChildren(el('option',{value:'',text:'None'}),...cs.map(c=>el('option',{text:c})));}$('edCat').value=it.cat||'';$('edCatNew').value='';$('edDate').value=it.date||'';$('edStart').value=it.start||'';$('edEnd').value=it.end||'';seg('edPts',it.points||10);
-  seg('edRep',it.repeat||'none');seg('edImp',Number(it.imp)||0);seg('edUrg',Number(it.urg)||0);$('edDue').value=it.due||'';$('edEst').value=it.est||'';seg('edPart',it.part||'');edSt=(it.steps||[]).map(x=>({t:x.t,d:!!x.d}));drawSteps();$('edStepNew').value='';$('edFocus').hidden=!id||it.done;$('edNote').value=it.note||'';
+  seg('edRep',it.repeat||'none');$('edRemT').value=it.remT||'';$('edRemD').value=it.remT?(it.remD||it.date||''):'';$('edRemE').value=String(it.remE==null?0:it.remE);seg('edImp',Number(it.imp)||0);seg('edUrg',Number(it.urg)||0);$('edDue').value=it.due||'';$('edEst').value=it.est||'';seg('edPart',it.part||'');edSt=(it.steps||[]).map(x=>({t:x.t,d:!!x.d}));drawSteps();$('edStepNew').value='';$('edFocus').hidden=!id||it.done;$('edNote').value=it.note||'';
   const d=$('edDel');delete d.dataset.sure;d.textContent='Delete';calLink();ptsVis();edMore(false,id?moreSet(it):0);
   {const dn=!!(id&&it.done&&it.doneAt),w=new Date(it.doneAt||Date.now());$('edDoneRow').hidden=!dn;$('edDoneD').max=today();
    if(dn){$('edDoneD').value=ymd(w);$('edDoneT').value=pad(w.getHours())+':'+pad(w.getMinutes());}}
@@ -1556,6 +1567,7 @@ for(const [b,n] of [['dueToday',0],['dueTom',1],['dueWeek',7],['dueNone',null]])
 $('edToday').onclick=()=>{$('edDate').value=today();calLink();};
 $('edTom').onclick=()=>{$('edDate').value=addDays(today(),1);calLink();};
 $('edNoDay').onclick=()=>{$('edDate').value='';$('edStart').value='';$('edEnd').value='';calLink();};
+$('edRemNone').onclick=()=>{$('edRemT').value='';$('edRemD').value='';};
 $('edSave').onclick=()=>{const id=ui.editId,text=$('edText').value.trim();if(!text){toast('The item needs some text.');return;}
   let kind=seg('edKind'),date=$('edDate').value||null;let start=$('edStart').value||null,end=$('edEnd').value||null;const repeat=seg('edRep')||'none';
   if(repeat!=='none'&&!date)date=today();
@@ -1563,8 +1575,8 @@ $('edSave').onclick=()=>{const id=ui.editId,text=$('edText').value.trim();if(!te
   if(!start)end=null;if(start&&end&&end<=start){toast('The end time must be after the start.');return;}
   if(kind==='inbox'&&date)kind='todo';
   const cat=$('edCatNew').value.trim()||$('edCat').value;if(cat&&!cats().includes(cat))saveCfg({cats:cats().concat(cat)});
-  const f={text,kind,owner:seg('edOwner'),cat,date,start,end,repeat,imp:Number(seg('edImp'))||0,urg:Number(seg('edUrg'))||0,due:$('edDue').value||null,est:$('edEst').value,part:start?'':(seg('edPart')||''),steps:edSt.concat($('edStepNew').value.trim()?[{t:$('edStepNew').value.trim(),d:false}]:[]),note:$('edNote').value.trim(),points:Number(seg('edPts'))||10,example:false};
-  const prev=id?S.items[id]:null,oth=other(ui.me),ask={};
+  const f={text,kind,owner:seg('edOwner'),cat,date,start,end,repeat,imp:Number(seg('edImp'))||0,urg:Number(seg('edUrg'))||0,due:$('edDue').value||null,est:$('edEst').value,part:start?'':(seg('edPart')||''),steps:edSt.concat($('edStepNew').value.trim()?[{t:$('edStepNew').value.trim(),d:false}]:[]),note:$('edNote').value.trim(),remT:$('edRemT').value||null,remD:$('edRemT').value?($('edRemD').value||date||$('edDue').value||today()):null,remE:Number($('edRemE').value)||0,points:Number(seg('edPts'))||10,example:false};
+  const prev=id?S.items[id]:null,oth=other(ui.me),ask={};if(prev&&(prev.remT!==f.remT||prev.remD!==f.remD))f.remNag=null;
   if(f.owner===oth&&(!prev||prev.owner!==oth)){ask.askedBy=ui.me;ask.ask='pending';ask.askHide=false;}
   else if(prev&&prev.askedBy&&f.owner!==prev.owner){ask.askedBy=null;ask.ask=null;}
   if(ui.accepting){ask.ask='accepted';ask.askHide=false;}

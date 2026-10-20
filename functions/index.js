@@ -204,7 +204,7 @@ exports.reminders = onSchedule({schedule: 'every 5 minutes', timeZone: 'Europe/T
   // Daily reminders: a notification at the first time, then again every `every` minutes (0 = once) until ticked.
   // Nothing new after the reminder's stop time (default 22:00).
   const wd = new Date(now.date + 'T12:00:00Z').getUTCDay();
-  const onDay = r => r.days === 'weekdays' ? wd > 0 && wd < 6 : r.days === 'weekends' ? wd === 0 || wd === 6 : true;
+  const onDay = r => r.days === 'date' ? r.date === now.date : r.days === 'pick' ? (r.wd || []).includes(wd) : r.days === 'weekdays' ? wd > 0 && wd < 6 : r.days === 'weekends' ? wd === 0 || wd === 6 : true;
   for (const d of (await db.collection('reminders').get()).docs) {
     const r = d.data(), every = r.every == null ? 60 : Number(r.every) || 0, until = /^\d\d:\d\d$/.test(r.until || '') ? r.until : '22:00';
     if (!r.text || !/^\d\d:\d\d$/.test(r.time || '') || (r.who !== 'a' && r.who !== 'b')) continue;
@@ -217,6 +217,21 @@ exports.reminders = onSchedule({schedule: 'every 5 minutes', timeZone: 'Europe/T
     await to([r.who], 'rem', first
       ? {title: '⏰ ' + r.text, body: 'Tick it in Kahekesi when it is done' + by + '.', tag: 'rem-' + d.id, url: '/?tab=rem'}
       : {title: 'Still to do: ' + r.text, body: 'Not ticked yet today. One tap and it is off your mind.', tag: 'rem-' + d.id, url: '/?tab=rem'});
+  }
+
+  // Task reminders: from the chosen day and time, until the task is ticked (again each day it stays open).
+  for (const d of open) {
+    const x = d.data();
+    if (!/^\d\d:\d\d$/.test(x.remT || '')) continue;
+    const day = [x.remD, x.date].filter(Boolean).sort().pop() || now.date;
+    if (now.date < day || now.hm < x.remT) continue;
+    const every = Number(x.remE) || 0, first = x.remNag !== now.date;
+    if (now.hm >= '22:00' && !(first && x.remT >= '22:00')) continue;
+    if (!first && (!every || Date.now() - (x.remAt || 0) < (every - 2) * 60e3)) continue;
+    const people = x.owner === 'both' ? ['a', 'b'] : (x.owner === 'a' || x.owner === 'b') && x.ask !== 'pending' && x.ask !== 'declined' ? [x.owner] : [];
+    if (!people.length) continue;
+    await d.ref.update({remNag: now.date, remAt: Date.now()});
+    await to(people, 'rem', {title: '⏰ ' + x.text, body: first ? 'Your reminder for this task.' : 'Still open. Tick it when it is done.', tag: 'task-' + d.id, url: x.date ? '/?tab=day' : '/?tab=todo'});
   }
 
   // Break nudges: when a planned break runs out and the app did not already nudge.
