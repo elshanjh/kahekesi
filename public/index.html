@@ -320,7 +320,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .dchip{position:relative;flex:none;display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;border:1.5px solid var(--line);font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}
 .dchip::after{content:"✎";font-size:12px;color:var(--muted)}
 .dchip input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;pointer-events:none}
-.rw.rem{padding:0 14px 0 0;gap:10px}.rw.rem .rtxt>span{flex:none}.rw.rem>.rmark{flex:none}.blog .rw.rem:first-child{border-top:0}.rtxt{flex:1;min-width:0;text-align:left;padding:10px 0;display:flex;flex-direction:column;font-size:16px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.rw.rem{padding:0 14px 0 0;gap:10px}.rw.rem .rtxt>span{flex:none}.rw.rem>.rmark{flex:none}.rw.rem.task>.rmark{width:38px;font-size:16px}.blog .rw.rem:first-child{border-top:0}.rtxt{flex:1;min-width:0;text-align:left;padding:10px 0;display:flex;flex-direction:column;font-size:16px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
 .rtxt small{font-size:13px;font-weight:500;color:var(--muted)}.rw.rem.late .rtxt small{color:var(--warn)}.rw.rem.ok .rtxt>span{color:var(--muted);text-decoration:line-through}.rw.rem.off{opacity:.6}
 .hint{font-size:12.5px;color:var(--muted);font-weight:400}
 .wdays{display:flex;gap:4px}.wdays button{flex:1;min-width:0;padding:9px 0;text-align:center;border-radius:10px;font-size:13px;font-weight:600;background:var(--sunk);color:var(--muted)}.wdays button[aria-pressed="true"]{background:var(--me);color:var(--on)}
@@ -1353,10 +1353,19 @@ function remRow(r,mine){const [k,txt]=remState(r),sub=[txt,r.days==='date'?null:
     mine?el('button',{class:'check'+(k==='ok'?' on':''),'aria-pressed':String(k==='ok'),'aria-label':(k==='ok'?'Not done: ':'Done: ')+r.text,onclick:()=>remTick(r)},el('i')):el('span',{class:'rmark',text:k==='ok'?'✓':'⏰'}),
     el('button',{class:'rtxt','aria-label':'Edit: '+r.text,onclick:()=>openRem(r.id)},el('span',{text:r.text}),el('small',{text:sub.filter(Boolean).join(' · ')})),
     el('button',{class:'rpoke',disabled:k==='ok','aria-label':'Send a nudge now: '+r.text,title:'Send a nudge now',onclick:()=>mine?remSelf(r):remPoke(r)},mine?'🔔':'👉'));}
+const taskRems=()=>vis().filter(it=>it.remT&&!it.done&&it.kind!=='shopping'&&it.kind!=='idea');
+const trKey=it=>([it.remD,it.date].filter(Boolean).sort().pop()||today())+' '+it.remT;
+function taskRemRow(it){const d=[it.remD,it.date].filter(Boolean).sort().pop()||today(),late=d<today()||(d===today()&&hmNow()>=it.remT),e=Number(it.remE)||0;
+  const sub=[(late?'Not done yet · ':d===today()?'Today at ':fmtDay(d)+' at ')+it.remT,e?'repeats '+evLabel(e):'once',it.owner==='both'?'together':null,'task'].filter(Boolean).join(' · ');
+  return el('div',{class:'rw rem task'+(late?' late':' wait')},
+    el('button',{class:'check','aria-label':'Done: '+it.text,onclick:ev=>toggle(it,ev)},el('i')),
+    el('button',{class:'rtxt','aria-label':'Edit: '+it.text,onclick:()=>openEdit(it.id)},el('span',{text:it.text}),el('small',{text:sub})),
+    el('span',{class:'rmark',text:'📋','aria-hidden':'true'}));}
 function remSelf(r){patch('reminders',r.id,{poke:{by:ui.me,at:Date.now()}});toast('Sending it to your phone now');}
-function vRem(){const l=myRems(),t=theirRems(),o=other(ui.me),late=l.filter(r=>remState(r)[0]==='late').length;
+function vRem(){const l=myRems(),t=theirRems(),o=other(ui.me),tk=taskRems(),late=l.filter(r=>remState(r)[0]==='late').length+tk.filter(it=>{const d=[it.remD,it.date].filter(Boolean).sort().pop()||today();return d<today()||(d===today()&&hmNow()>=it.remT);}).length;
+  const rows=l.map(r=>({k:remKey(r),n:remRow(r,true)})).concat(tk.map(it=>({k:trKey(it),n:taskRemRow(it)}))).sort((a,b)=>a.k.localeCompare(b.k)).map(x=>x.n);
   return [el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:'Reminders'}),el('span',{text:late?late+' not done yet':l.length?'All good today':''})),
-    l.length?el('div',{class:'blog'},l.map(r=>remRow(r,true))):
+    rows.length?el('div',{class:'blog'},rows):
       el('p',{class:'empty',text:'For small daily things like vitamins or the Wordle. Type one into the bar above and pick a time. If it is not ticked by then, you get nudges until it is. No points, just a nudge.'}),
     el('button',{class:'btn ghost small',style:'align-self:flex-start;margin-top:10px',text:'+ New reminder',onclick:()=>openRem(null)})),
     el('section',{class:'sec'},el('div',{class:'sec-h'},el('h2',{text:name(o)+"'s reminders"}),el('span',{text:t.length?'👉 sends a nudge':''})),
@@ -1520,7 +1529,7 @@ function render(){
   const showCats=ui.catsOpen||isCat;
   $('nav').replaceChildren(
     nb('day','Schedule',cnt.day,null,'main'),nb('inbox','Inbox',cnt.inbox,null,'main'),
-    el('h3',{class:'main',text:'Lists'}),nb('todo','To-dos',cnt.todo,null,'main'),nb('shopping','Shopping',cnt.shopping,null,'main'),nb('rem','Reminders',myRems().filter(r=>remState(r)[0]==='late').length),
+    el('h3',{class:'main',text:'Lists'}),nb('todo','To-dos',cnt.todo,null,'main'),nb('shopping','Shopping',cnt.shopping,null,'main'),nb('rem','Reminders',myRems().filter(r=>remState(r)[0]==='late').length+taskRems().filter(it=>{const d=[it.remD,it.date].filter(Boolean).sort().pop()||today();return d<today()||(d===today()&&hmNow()>=it.remT);}).length),
     nb('rewards','Rewards',balance(ui.me)+' pts'),nb('cycle',ui.me===TRACKER?'Cycle':name(TRACKER)+"'s cycle",null),nb('activity','Activity',null),nb('review','Weekly review',n(i=>(i.date&&i.date<today())||(i.due&&i.due<today()))),
     el('button',{class:'nav grp','aria-expanded':String(showCats),onclick:()=>{ui.catsOpen=!showCats;if(isCat&&showCats)ui.tab='todo';render();}},el('span',{text:'Categories'}),el('b',{text:showCats?'Hide':'Show '+cats().length})),
     ...(showCats?cats().map(c=>nb('cat:'+c,c,n(i=>i.cat===c),hue(c))):[]));
