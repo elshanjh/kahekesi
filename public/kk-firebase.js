@@ -181,7 +181,8 @@ const prefsList = () => [
   ['nudge', () => 'When my break time is up'],
   ...(me === 'a' ? [['wish', o => 'When ' + names[o] + ' asks for something today'], ['cycle', o => 'Heads-up about ' + names[o] + "'s cycle"]]
     : [['wish', o => 'When ' + names[o] + ' answers your request'], ['cycleStart', () => 'When my period may start'], ['cycleLog', () => 'Evening check-in reminder on period days']]),
-  ['rem', () => 'My reminders, every hour until I tick them'],
+  ['rem', () => 'My reminders, until I tick them'],
+  ['remFrom', o => 'When ' + names[o] + ' sets or nudges a reminder for me'],
   ['plan', () => '15 minutes before something you planned'],
   ['morning', () => 'Morning summary at 8:00'],
   ['goal', () => 'Shared goal reached and rewards redeemed'],

@@ -144,6 +144,22 @@ exports.onCycleShare = onDocumentWritten('cycle/{p}', async ev => {
   await to([other(p)], 'cycle', {title: nm(c, p) + "'s period started 🫶", body: a.helps ? ('What helps: ' + a.helps).slice(0, 140) : 'A gentle few days ahead.', tag: 'cycle-' + p, url: '/?tab=cycle'});
 });
 
+// Reminders set for the other person, and nudges sent from the app.
+exports.onReminder = onDocumentWritten('reminders/{id}', async ev => {
+  const b = ev.data.before.exists ? ev.data.before.data() : null;
+  const a = ev.data.after.exists ? ev.data.after.data() : null;
+  if (!a || (a.who !== 'a' && a.who !== 'b')) return;
+  const c = await cfg(), id = ev.params.id;
+  if (!b && a.from && a.from !== a.who) {
+    await to([a.who], 'remFrom', {title: nm(c, a.from) + ' set a reminder for you', body: a.text + ' · at ' + a.time, tag: 'remset-' + id, url: '/?tab=rem'});
+  }
+  const p = a.poke, q = b && b.poke;
+  if (p && p.at && (!q || q.at !== p.at) && Date.now() - p.at < 10 * 60e3) {
+    if (p.by === a.who) await to([a.who], 'rem', {title: '⏰ ' + a.text, body: 'Tick it in Kahekesi when it is done.', tag: 'rem-' + id, url: '/?tab=rem'});
+    else await to([a.who], 'remFrom', {title: nm(c, p.by) + ' reminds you 👉', body: a.text, tag: 'rem-' + id, url: '/?tab=rem'});
+  }
+});
+
 exports.onWish = onDocumentWritten('wishes/{id}', async ev => {
   const b = ev.data.before.exists ? ev.data.before.data() : null;
   const a = ev.data.after.exists ? ev.data.after.data() : null;
@@ -185,19 +201,21 @@ exports.reminders = onSchedule({schedule: 'every 5 minutes', timeZone: 'Europe/T
     await to(people, 'plan', {title: 'At ' + x.start + ': ' + x.text, body: x.owner === 'both' ? 'Together with ' + nm(c, other(people[0])) : 'Coming up soon', tag: 'plan-' + d.id, url: '/?tab=day'});
   }
 
-  // Daily reminders: a notification at their time, then one every hour until ticked. Nothing new after 22:00.
+  // Daily reminders: a notification at the first time, then again every `every` minutes (0 = once) until ticked.
+  // Nothing new after the reminder's stop time (default 22:00).
   const wd = new Date(now.date + 'T12:00:00Z').getUTCDay();
   const onDay = r => r.days === 'weekdays' ? wd > 0 && wd < 6 : r.days === 'weekends' ? wd === 0 || wd === 6 : true;
   for (const d of (await db.collection('reminders').get()).docs) {
-    const r = d.data();
+    const r = d.data(), every = r.every == null ? 60 : Number(r.every) || 0, until = /^\d\d:\d\d$/.test(r.until || '') ? r.until : '22:00';
     if (!r.text || !/^\d\d:\d\d$/.test(r.time || '') || (r.who !== 'a' && r.who !== 'b')) continue;
     if (r.doneOn === now.date || now.hm < r.time || !onDay(r)) continue;
     const first = r.nagDate !== now.date;
-    if (now.hm >= '22:00' && !(first && r.time >= '22:00')) continue;
-    if (!first && Date.now() - (r.nagAt || 0) < 58 * 60e3) continue;
+    if (now.hm >= until && !(first && r.time >= until)) continue;
+    if (!first && (!every || Date.now() - (r.nagAt || 0) < (every - 2) * 60e3)) continue;
     await d.ref.update({nagDate: now.date, nagAt: Date.now()});
+    const by = r.from && r.from !== r.who ? ' (from ' + nm(c, r.from) + ')' : '';
     await to([r.who], 'rem', first
-      ? {title: '⏰ ' + r.text, body: 'Tick it in Kahekesi when it is done.', tag: 'rem-' + d.id, url: '/?tab=rem'}
+      ? {title: '⏰ ' + r.text, body: 'Tick it in Kahekesi when it is done' + by + '.', tag: 'rem-' + d.id, url: '/?tab=rem'}
       : {title: 'Still to do: ' + r.text, body: 'Not ticked yet today. One tap and it is off your mind.', tag: 'rem-' + d.id, url: '/?tab=rem'});
   }
 
