@@ -330,7 +330,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .tlist{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
 .trow{display:flex;align-items:center;gap:6px}.trow .sitem{flex:1;min-width:0}
 .trow .sitem.tbox{flex:none;width:auto;padding:7px 4px 7px 8px}
-.tbline{display:flex;gap:4px;align-items:center}.tbline .tbrand{flex:1;min-width:0}
+.tbline{display:flex;gap:4px;align-items:center}.bsug{display:flex;flex-wrap:wrap;gap:4px}.bsug[hidden]{display:none}.bchip{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--both-soft);color:var(--both);font-style:italic}.bchip::before{content:'↺ ';font-style:normal}.tbline .tbrand{flex:1;min-width:0}
 .tsale{flex:none;font-size:12px;font-weight:600;padding:4px 8px;border-radius:999px;border:1.5px solid var(--line);color:var(--muted);white-space:nowrap}.tsale[aria-pressed="true"]{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
 .tcol{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:3px 0}.tbrand{min-height:30px;padding:3px 10px;font-size:13px;font-style:italic;color:var(--both);background:var(--both-soft);border-color:transparent}.tbrand::placeholder{color:var(--muted);font-style:normal;opacity:.8}
 .tname{flex:1;min-width:0;min-height:38px;padding:6px 10px}.tname.off{color:var(--muted);padding:6px 4px;overflow-wrap:anywhere}
@@ -340,7 +340,10 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:60
 .sgroup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
 .shead{display:flex;align-items:center;gap:8px}.shead>div{flex:1;min-width:0;display:flex;flex-direction:column}.shead small{color:var(--muted);font-size:12.5px}
 .slines{display:flex;flex-direction:column;gap:2px;font-size:13.5px;color:var(--muted)}
-.sline{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding-top:4px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}.sline span:last-child{color:var(--ink);font-weight:600}
+.sline{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding-top:4px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums;text-align:left;color:inherit;width:100%}button.sline{padding:7px 0 5px}button.sline:active{background:var(--sunk)}
+.r.qbar{display:flex;gap:8px;flex:none;flex-wrap:nowrap;align-items:stretch;width:100%}.qbar>#shopQ{flex:1 1 auto;min-width:0;width:auto}.qbar>.sdayw{flex:0 0 50px;min-height:48px;overflow:hidden}.sdayw{position:relative;flex:none;width:48px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:12px;font-size:20px;background:var(--surface)}
+.sdayw .sday{position:absolute;inset:0;opacity:0;width:100%;height:100%;padding:0;border:0}.sdayw:has(.on){border-color:var(--me);background:var(--a-soft)}
+.sday-h{display:flex;align-items:center;justify-content:space-between;gap:8px}.strip{text-align:left;color:inherit;width:100%;display:flex;flex-direction:column;gap:6px}.sline-h{display:flex;justify-content:space-between;gap:8px}.sline span:last-child{color:var(--ink);font-weight:600}
 .sbest{color:var(--b)!important;font-weight:600}
 .tqty{flex:none;width:74px;min-height:38px;padding:6px 3px;text-align:center;color:var(--amt);background:var(--amt-soft);border-color:transparent;font-weight:600}
 .tprice{flex:none;width:76px;min-height:38px;padding:6px 10px;text-align:right;color:var(--cash);background:var(--cash-soft);border-color:transparent;font-weight:600}.tqty::placeholder,.tprice::placeholder{color:var(--muted);font-weight:400;opacity:.8}
@@ -1231,12 +1234,23 @@ const amtLabel=v=>{if(v==null||v==='')return '';const a=parseAmt(v);return a&&a.
 function unitPrice(price,v){const a=parseAmt(v);if(!price||!a)return null;if(a.unit==='pc'){if(a.n<=1)return null;return {per:price/a.n,unit:'each'};}return {per:price/a.base,unit:a.unit,each:a.packs>1?price/a.packs:null};}
 const upLabel=u=>u?eur(u.per)+(u.unit==='each'?' each':'/'+u.unit)+(u.each?' · '+eur(u.each)+' each':''):'';
 function purchases(){const out=[];for(const it of items()){if(it.kind!=='shopping'||!it.done)continue;const t=it.tripId&&S.trips[it.tripId],x=t&&(t.items||[]).find(y=>y.id===it.id);
-  out.push({k:it.text.trim().toLowerCase(),text:it.text.trim(),at:it.doneAt||0,price:it.price||(x&&x.price)||null,qty:x&&x.qty!=null?x.qty:null,brand:x&&x.brand||'',sale:!!(x&&x.sale),store:t&&t.store||'',who:it.doneBy});const o=out[out.length-1];o.up=unitPrice(o.price,o.qty);}return out;}
+  out.push({k:it.text.trim().toLowerCase(),text:it.text.trim(),at:it.doneAt||0,price:it.price||(x&&x.price)||null,qty:x&&x.qty!=null?x.qty:null,brand:x&&x.brand||'',sale:!!(x&&x.sale),store:t&&t.store||'',who:it.doneBy,id:it.id,tripId:t?it.tripId:null});const o=out[out.length-1];o.up=unitPrice(o.price,o.qty);}return out;}
 function searchBox(){const inp=el('input',{class:'field',id:'shopQ',type:'search',placeholder:'🔍 When did we last buy…','aria-label':'Search what you bought',value:ui.shopQ||'',
     oninput:e=>{ui.shopQ=e.target.value;$('shopRes').replaceChildren(...searchResults());}});
-  return el('section',{class:'sec'},inp,el('div',{id:'shopRes',class:'sres'},...searchResults()));}
-function searchResults(){const q=(ui.shopQ||'').trim().toLowerCase();if(!q)return [];
-  const g={};for(const p of purchases())if(p.k.includes(q)||(p.brand&&p.brand.toLowerCase().includes(q)))(g[p.k]=g[p.k]||[]).push(p);
+  const day=el('input',{class:'field sday'+(ui.shopDay?' on':''),type:'date',max:today(),value:ui.shopDay||'','aria-label':'Pick a day to see what you bought',
+    onclick:e=>{try{e.target.showPicker()}catch(x){}},onchange:e=>{ui.shopDay=e.target.value||'';e.target.classList.toggle('on',!!ui.shopDay);$('shopRes').replaceChildren(...searchResults());}});
+  return el('section',{class:'sec'},el('div',{class:'r qbar'},inp,el('label',{class:'sdayw',title:'Pick a day'},el('span',{text:'📅'}),day)),el('div',{id:'shopRes',class:'sres'},...searchResults()));}
+function dayResults(){const d=ui.shopDay,ts=Object.values(S.trips).filter(t=>ymd(new Date(t.at))===d).sort((a,b)=>a.at-b.at);
+  const loose=purchases().filter(p=>!p.tripId&&ymd(new Date(p.at))===d);
+  const head=el('div',{class:'sday-h'},el('b',{text:fmtDay(d)+(d!==today()&&d!==addDays(today(),-1)?'':', '+d.split('-').reverse().join('.'))}),el('button',{type:'button',class:'btn ghost small',text:'Clear day',onclick:()=>{ui.shopDay='';render();}}));
+  if(!ts.length&&!loose.length)return [head,el('p',{class:'empty',text:'Nothing logged as bought that day.'})];
+  return [head,...ts.map(t=>el('button',{type:'button',class:'sgroup strip',onclick:()=>openTrip(t.id)},
+    el('div',{class:'sline-h'},el('b',{text:(t.store||'Shop trip')+(t.who?' · '+name(t.who):'')}),el('b',{text:t.total?eur(t.total):''})),
+    el('div',{class:'slines'},(t.items||[]).map(x=>el('div',{class:'sline'},el('span',{text:x.text}),el('span',{text:[x.brand,amtLabel(x.qty)].filter(Boolean).join(' · ')}),el('span',{text:x.price?(x.sale?'🏷️ ':'')+eur(x.price):''})))),
+    el('small',{class:'hint',text:'Tap to open and edit the trip'}))),
+    loose.length?el('div',{class:'sgroup'},el('b',{text:'Ticked off without a trip'}),el('div',{class:'slines'},loose.map(p=>el('button',{type:'button',class:'sline',onclick:()=>openEdit(p.id)},el('span',{text:p.text}),el('span',{text:''}),el('span',{text:p.price?eur(p.price):''}))))):null].filter(Boolean);}
+function searchResults(){const q=(ui.shopQ||'').trim().toLowerCase();if(!q&&ui.shopDay)return dayResults();if(!q)return [];
+  const g={};for(const p of purchases())if((!ui.shopDay||ymd(new Date(p.at))===ui.shopDay)&&p.k.includes(q)||(p.brand&&p.brand.toLowerCase().includes(q)))(g[p.k]=g[p.k]||[]).push(p);
   const groups=Object.values(g).map(l=>l.sort((x,y)=>y.at-x.at)).sort((x,y)=>y[0].at-x[0].at).slice(0,8);
   const onList=t=>vis().some(it=>it.kind==='shopping'&&!it.done&&it.text.trim().toLowerCase()===t);
   if(!groups.length)return [el('p',{class:'empty',text:'Nothing called "'+ui.shopQ.trim()+'" bought yet.'})];
@@ -1248,7 +1262,7 @@ function searchResults(){const q=(ui.shopQ||'').trim().toLowerCase();if(!q)retur
         best?el('small',{class:'sbest',text:'Cheapest: '+upLabel(best.up)+(best.store?' at '+best.store:'')+(best.brand?' · '+best.brand:'')+(best.sale?' 🏷️ on sale':'')+', '+boughtAgo(best.at)}):null,
         reg0?el('small',{text:'Cheapest regular price: '+upLabel(reg0.c)+(reg0.store?' at '+reg0.store:'')+(reg0.brand?' · '+reg0.brand:'')}):null),
         onList(last.k)?el('span',{class:'pill',text:'on the list'}):el('button',{class:'btn ghost small',text:'+ List',onclick:e=>{put('items',uid(),fresh(blank({text:last.text,kind:'shopping',owner:'both',points:5})));toast('Added '+last.text+'.');e.currentTarget.replaceWith(el('span',{class:'pill',text:'on the list'}));}})),
-      el('div',{class:'slines'},l.slice(0,5).map(p=>el('div',{class:'sline'},el('span',{text:fmtDay(ymd(new Date(p.at)))}),el('span',{text:[p.store,p.brand||null,amtLabel(p.qty)||null].filter(Boolean).join(' · ')}),el('span',{text:p.price?(p.sale?'🏷️ ':'')+eur(p.price)+(p.up?' · '+upLabel(p.up):''):''})))));});}
+      el('div',{class:'slines'},l.slice(0,5).map(p=>el('button',{type:'button',class:'sline','aria-label':(p.tripId?'Open the trip: ':'Edit: ')+p.text,onclick:()=>p.tripId?openTrip(p.tripId):openEdit(p.id)},el('span',{text:fmtDay(ymd(new Date(p.at)))+(p.tripId?' ›':'')}),el('span',{text:[p.store,p.brand||null,amtLabel(p.qty)||null].filter(Boolean).join(' · ')}),el('span',{text:p.price?(p.sale?'🏷️ ':'')+eur(p.price)+(p.up?' · '+upLabel(p.up):''):''})))));});}
 // Recently bought: fix the date when something was ticked late, or put it back on the list.
 function recentBought(){const all=vis().filter(it=>it.kind==='shopping'&&it.done).sort((x,y)=>(y.doneAt||0)-(x.doneAt||0));
   if(!all.length)return null;
@@ -1277,27 +1291,35 @@ function openTrip(id){const t=id&&S.trips[id];TR.id=id||null;TR.sel={};TR.price=
   show('tripSheet');drawTrip();}
 function tripCands(){const from=new Date(TR.date+'T00:00').getTime()-6*864e5,to=new Date(TR.date+'T23:59').getTime()+864e5;
   return vis().filter(it=>it.kind==='shopping'&&it.done&&((it.tripId&&it.tripId===TR.id)||TR.sel[it.id]||(!it.tripId&&(it.doneAt||0)>=from&&(it.doneAt||0)<=to))).sort((x,y)=>(y.doneAt||0)-(x.doneAt||0));}
+// Suggestions while logging: names you bought before, and the brands you bought for that name (newest first).
+function knownNames(){const m=new Map();for(const p of purchases().sort((a,b)=>b.at-a.at))if(!m.has(p.k))m.set(p.k,p.text);for(const it of items())if(it.kind==='shopping'){const k=it.text.trim().toLowerCase();if(!m.has(k))m.set(k,it.text.trim());}return [...m.values()];}
+function brandsFor(nm){const k=(nm||'').trim().toLowerCase(),own=[],all=[];for(const p of purchases().sort((a,b)=>b.at-a.at)){if(!p.brand)continue;if(p.k===k&&!own.includes(p.brand))own.push(p.brand);if(!all.includes(p.brand))all.push(p.brand);}return {own,all};}
+function brandBox(nm,get,set){const inp=el('input',{class:'field tbrand',maxlength:'40',placeholder:'Brand (optional)','aria-label':'Brand of '+nm,list:'dlBrands',value:get()||'',oninput:e=>{set(e.target.value);draw();}});
+  const sugg=el('div',{class:'bsug'});const draw=()=>{const cur=(inp.value||'').trim().toLowerCase(),l=brandsFor(nm).own.filter(b=>b.toLowerCase()!==cur).slice(0,3);
+    sugg.replaceChildren(...l.map(b=>el('button',{type:'button',class:'bchip',onclick:()=>{inp.value=b;set(b);draw();}},b)));sugg.hidden=!l.length;};draw();
+  return [inp,sugg];}
 function drawTrip(){const box=$('tripBody'),c=tripCands(),t=TR.id&&S.trips[TR.id];
   const sum=c.filter(it=>TR.sel[it.id]).reduce((n,it)=>n+(money(TR.price[it.id])||0),0);
   const rows=c.map(it=>el('div',{class:'trow'},
     el('button',{type:'button',class:'sitem tbox'+(TR.sel[it.id]?' on':''),'aria-pressed':String(!!TR.sel[it.id]),'aria-label':(TR.sel[it.id]?'Leave out ':'Include ')+it.text,onclick:()=>{TR.sel[it.id]=!TR.sel[it.id];drawTrip();}},el('i')),
-    TR.sel[it.id]?el('div',{class:'tcol'},el('input',{class:'field tname',maxlength:'60','aria-label':'Name','value':TR.name[it.id]!=null?TR.name[it.id]:it.text,oninput:e=>{TR.name[it.id]=e.target.value;}}),
-      el('div',{class:'tbline'},el('input',{class:'field tbrand',maxlength:'40',placeholder:'Brand (optional)','aria-label':'Brand of '+it.text,value:TR.brand[it.id]||'',oninput:e=>{TR.brand[it.id]=e.target.value;}}),el('button',{type:'button',class:'tsale','aria-pressed':String(!!TR.sale[it.id]),'aria-label':'On sale','title':'Bought on sale',onclick:e=>{TR.sale[it.id]=!TR.sale[it.id];e.currentTarget.setAttribute('aria-pressed',String(!!TR.sale[it.id]));}},'🏷️ Sale'))):el('span',{class:'tname off',text:it.text}),
+    TR.sel[it.id]?el('div',{class:'tcol'},el('input',{class:'field tname',maxlength:'60','aria-label':'Name',list:'dlNames','value':TR.name[it.id]!=null?TR.name[it.id]:it.text,oninput:e=>{TR.name[it.id]=e.target.value;}}),
+      ...(([bi,bs])=>[el('div',{class:'tbline'},bi,el('button',{type:'button',class:'tsale','aria-pressed':String(!!TR.sale[it.id]),'aria-label':'On sale','title':'Bought on sale',onclick:e=>{TR.sale[it.id]=!TR.sale[it.id];e.currentTarget.setAttribute('aria-pressed',String(!!TR.sale[it.id]));}},'🏷️ Sale')),bs])(brandBox(TR.name[it.id]!=null?TR.name[it.id]:it.text,()=>TR.brand[it.id],v=>{TR.brand[it.id]=v;}))):el('span',{class:'tname off',text:it.text}),
     TR.sel[it.id]?el('input',{class:'field tqty',placeholder:'Amount','aria-label':'How many '+it.text,value:TR.qty[it.id]||'',oninput:e=>{TR.qty[it.id]=e.target.value;}}):null,
     TR.sel[it.id]?el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+it.text,value:TR.price[it.id]||'',oninput:e=>{TR.price[it.id]=e.target.value;const h=$('trSum');if(h){const s2=c.filter(x=>TR.sel[x.id]).reduce((n,x)=>n+(money(TR.price[x.id])||0),0);const s3=s2+TR.extra.reduce((n,x)=>n+(money(x.price)||0),0);h.textContent=s3?'Items add up to '+eur(s3):'';}}}):null));
   const xsum=TR.extra.reduce((n,x)=>n+(money(x.price)||0),0);
   const xrows=TR.extra.map((x,i)=>el('div',{class:'trow'},
     el('button',{type:'button',class:'sitem tbox on','aria-pressed':'true','aria-label':'Remove '+x.t,onclick:()=>{TR.extra.splice(i,1);drawTrip();}},el('i')),
-    el('div',{class:'tcol'},el('input',{class:'field tname',maxlength:'60','aria-label':'Name',value:x.t,oninput:e=>{x.t=e.target.value;}}),
-      el('div',{class:'tbline'},el('input',{class:'field tbrand',maxlength:'40',placeholder:'Brand (optional)','aria-label':'Brand of '+x.t,value:x.brand||'',oninput:e=>{x.brand=e.target.value;}}),el('button',{type:'button',class:'tsale','aria-pressed':String(!!x.sale),'aria-label':'On sale',onclick:e=>{x.sale=!x.sale;e.currentTarget.setAttribute('aria-pressed',String(!!x.sale));}},'🏷️ Sale'))),
+    el('div',{class:'tcol'},el('input',{class:'field tname',maxlength:'60','aria-label':'Name',list:'dlNames',value:x.t,oninput:e=>{x.t=e.target.value;}}),
+      ...(([bi,bs])=>[el('div',{class:'tbline'},bi,el('button',{type:'button',class:'tsale','aria-pressed':String(!!x.sale),'aria-label':'On sale',onclick:e=>{x.sale=!x.sale;e.currentTarget.setAttribute('aria-pressed',String(!!x.sale));}},'🏷️ Sale')),bs])(brandBox(x.t,()=>x.brand,v=>{x.brand=v;}))),
     el('input',{class:'field tqty',placeholder:'Amount','aria-label':'How many '+x.t,value:x.qty||'',oninput:e=>{x.qty=e.target.value;}}),
     el('input',{class:'field tprice',inputmode:'decimal',placeholder:'€','aria-label':'Price of '+x.t,value:x.price||'',oninput:e=>{x.price=e.target.value;}})));
-  const nx=el('input',{class:'field',id:'trNew',maxlength:'60',placeholder:'Something you did not tick','aria-label':'Something else you bought',style:'flex:1;min-width:0'});
+  const nx=el('input',{class:'field',id:'trNew',maxlength:'60',list:'dlNames',placeholder:'Something you did not tick','aria-label':'Something else you bought',style:'flex:1;min-width:0'});
   const np=el('input',{class:'field tprice',id:'trNewP',inputmode:'decimal',placeholder:'€','aria-label':'Its price'});
   const addX=()=>{const v=nx.value.trim();if(!v)return;TR.extra.push({t:v,price:np.value});drawTrip();setTimeout(()=>$('trNew')&&$('trNew').focus(),20);};
   nx.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addX();}});np.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addX();}});
   const addLine=el('div',{class:'trow tadd'},nx,np,el('button',{type:'button',class:'btn ghost small',text:'Add',onclick:addX}));
-  box.replaceChildren(...[el('h2',{text:t?'Shop trip':'Log a shop trip'}),
+  const dl=(id,l)=>el('datalist',{id},l.map(v=>el('option',{value:v})));
+  box.replaceChildren(...[dl('dlNames',knownNames()),dl('dlBrands',brandsFor('').all),el('h2',{text:t?'Shop trip':'Log a shop trip'}),
     el('div',{class:'r'},el('label',{class:'f'},'Shop',el('input',{class:'field',placeholder:'Rimi, Lidl…',value:TR.store,maxlength:'40',oninput:e=>TR.store=e.target.value})),
       el('label',{class:'f'},'Total',el('input',{class:'field',inputmode:'decimal',placeholder:'€ 20',value:TR.total,oninput:e=>TR.total=e.target.value}))),
     el('label',{class:'f'},'Who bought it',el('div',{class:'seg'},['a','b'].map(p=>el('button',{type:'button','aria-pressed':String(TR.who===p),text:name(p),onclick:()=>{TR.who=p;drawTrip();}})))),
